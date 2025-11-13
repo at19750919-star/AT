@@ -1,0 +1,2785 @@
+// ════════════════════════════════════════════════════════════════
+// 訊號牌系統 - 百家樂牌靴生成與分析工具  
+// ════════════════════════════════════════════════════════════════
+// 
+// 【核心功能】
+// 1. 自訂訊號牌配置（任意花色 + 數字組合）
+// 2. 生成包含敏感局的牌靴
+// 3. S 局：敏感局中包含訊號牌，自動調整為莊家勝
+// 4. T 局：兩對牌局，下一局自動設為和局
+//
+// 【重要概念】
+// - 訊號牌：使用者自訂的花色+數字組合（例如：紅心10,J,Q,K）
+// - 敏感局：交換莊閒前兩張牌會改變結果的局
+// - S 局：敏感局 + 包含訊號牌
+// - T 局：包含兩對相同數字的牌
+//
+// ════════════════════════════════════════════════════════════════
+
+window.SignalLogic = (function() {
+const ENABLE_S_LOGS = false;
+function sLog(message, type = 'info') {
+    if (ENABLE_S_LOGS) log(message, type);
+}
+
+const SIGNAL_STORAGE_KEY = 'signal_config';
+const VALID_SUITS = ['♠', '♥', '♦', '♣'];
+const VALID_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const SIGNAL_DEFAULT_CONFIG = { suits: [], ranks: [] };
+const SUIT_SYMBOL_TO_LETTER_MAP = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C', 'S': 'S', 'H': 'H', 'D': 'D', 'C': 'C' };
+const SUIT_LETTER_TO_SYMBOL_MAP = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const SIGNAL_RANKS_ORDER = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SIGNAL_SUITS_ORDER = ['S','H','D','C'];
+
+function sanitizeConfigArray(values, allowed) {
+    if (!Array.isArray(values)) return [];
+    const allowSet = new Set(allowed);
+    return values.filter(value => allowSet.has(value));
+}
+
+function sanitizeSignalConfig(config) {
+    if (!config || typeof config !== 'object') return { suits: [], ranks: [] };
+    const suits = sanitizeConfigArray(config.suits, VALID_SUITS);
+    const ranks = sanitizeConfigArray(config.ranks, VALID_RANKS);
+    return { suits, ranks };
+}
+
+function loadInitialSignalConfig() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return { ...SIGNAL_DEFAULT_CONFIG };
+    }
+    try {
+        const stored = window.localStorage.getItem(SIGNAL_STORAGE_KEY);
+        if (!stored) return { ...SIGNAL_DEFAULT_CONFIG };
+        const parsed = JSON.parse(stored);
+        const sanitized = sanitizeSignalConfig(parsed);
+        return {
+            suits: sanitized.suits,
+            ranks: sanitized.ranks
+        };
+    } catch (error) {
+        console.warn('Failed to load saved signal config:', error);
+        return { ...SIGNAL_DEFAULT_CONFIG };
+    }
+}
+
+const initialSignalConfig = loadInitialSignalConfig();
+let SIGNAL_CONFIG = {
+    suits: Array.isArray(initialSignalConfig.suits) ? initialSignalConfig.suits.slice() : [],
+    ranks: Array.isArray(initialSignalConfig.ranks) ? initialSignalConfig.ranks.slice() : []
+};
+
+function persistSignalConfig(config) {
+    const sanitized = sanitizeSignalConfig(config);
+    SIGNAL_CONFIG.suits = sanitized.suits.slice();
+    SIGNAL_CONFIG.ranks = sanitized.ranks.slice();
+    if (typeof window !== 'undefined') {
+        window.__signalConfig = {
+            suits: sanitized.suits.slice(),
+            ranks: sanitized.ranks.slice()
+        };
+        try {
+            if (window.localStorage) {
+                window.localStorage.setItem(SIGNAL_STORAGE_KEY, JSON.stringify(window.__signalConfig));
+            }
+        } catch (error) {
+            console.warn('Failed to persist signal config:', error);
+        }
+    }
+    return {
+        suits: SIGNAL_CONFIG.suits.slice(),
+        ranks: SIGNAL_CONFIG.ranks.slice()
+    };
+}
+
+persistSignalConfig(SIGNAL_CONFIG);
+// === 標準化的 round 建構函式(來自主程式,保留敏感局資訊)
+function makeRoundInfo(start, cards, result, sensitive) {
+    return {
+        start_index: start,
+        cards: cards,
+        result: result,
+        sensitive: sensitive,
+        segment: null,
+        // 提供即時計算花色統計的 getter
+        get suit_counts() {
+            const counts = new Map();
+            for (const card of this.cards) {
+                const key = card && card.suit ? card.suit : '未知';
+                counts.set(key, (counts.get(key) || 0) + 1);
+            }
+            return counts;
+        },
+        // 方便取得本局總張數
+        get card_count() {
+            return Array.isArray(this.cards) ? this.cards.length : 0;
+        }
+    };
+}
+
+
+class Card {
+    constructor(rank, suit, pos) {
+        this.rank = rank;
+        this.suit = suit;
+        this.pos = pos;
+    }
+    
+    point() {
+        const values = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 0, 'J': 0, 'Q': 0, 'K': 0};
+        return values[this.rank];
+    }
+    
+    short() {
+        return `${this.rank}${this.suit}`;
+    }
+    
+    isZero() {
+        return this.point() === 0;
+    }
+    
+    isSignalCard() {
+        const hasSuits = Array.isArray(SIGNAL_CONFIG.suits) && SIGNAL_CONFIG.suits.length > 0;
+        const hasRanks = Array.isArray(SIGNAL_CONFIG.ranks) && SIGNAL_CONFIG.ranks.length > 0;
+        if (!hasSuits || !hasRanks) return false;
+        const suitMatch = SIGNAL_CONFIG.suits.includes(this.suit);
+        const rankMatch = SIGNAL_CONFIG.ranks.includes(this.rank);
+        return suitMatch && rankMatch;
+    }
+
+    clone(newPos = this.pos) {
+        const copy = new Card(this.rank, this.suit, newPos);
+        if (this.back_color) copy.back_color = this.back_color;
+        if (this.color) copy.color = this.color;
+        return copy;
+    }
+}
+
+class Simulator {
+    constructor(deck) {
+        this.deck = deck;
+    }
+    
+    simulate_round(start, options = {}) {
+        const no_swap = options.no_swap || false;
+        const d = this.deck;
+        let idx = start;
+        
+        if (idx + 3 >= d.length) return null;
+        
+        // 前四張牌
+        const p1 = d[idx++].point();
+        const b1 = d[idx++].point();
+        const p2 = d[idx++].point();
+        const b2 = d[idx++].point();
+        
+        let p_tot = (p1 + p2) % 10;
+        let b_tot = (b1 + b2) % 10;
+        
+        const natural = (p_tot >= 8 || b_tot >= 8);
+        
+        const draw = () => {
+            if (idx >= d.length) return false;
+            idx++;
+            return true;
+        };
+        
+        // 補牌邏輯
+        if (!natural) {
+            if (p_tot <= 5) {
+                if (!draw()) return null;
+                const pt = d[idx - 1].point();
+                p_tot = (p_tot + pt) % 10;
+                
+                if (b_tot <= 2) {
+                    if (!draw()) return null;
+                } else if (b_tot === 3 && pt !== 8) {
+                    if (!draw()) return null;
+                } else if (b_tot === 4 && [2,3,4,5,6,7].includes(pt)) {
+                    if (!draw()) return null;
+                } else if (b_tot === 5 && [4,5,6,7].includes(pt)) {
+                    if (!draw()) return null;
+                } else if (b_tot === 6 && [6,7].includes(pt)) {
+                    if (!draw()) return null;
+                }
+            } else if (b_tot <= 5) {
+                if (!draw()) return null;
+            }
+        }
+        
+        const res = (p_tot === b_tot) ? '和' : ((p_tot > b_tot) ? '閒' : '莊');
+        const used = d.slice(start, idx);
+        
+        if (no_swap) {
+            return {
+                start_index: start,
+                cards: used,
+                result: res,
+                sensitive: false
+            };
+        }
+        
+        // 檢查敏感性
+        const [swap_res, same_len] = this._swap_result(start);
+        const invalid_swap = (res === '和' && swap_res === '莊');
+        const sensitive = ((swap_res !== null) && (swap_res !== res) && (swap_res !== '和') && (same_len === used.length) && !invalid_swap);
+        
+        return {
+            start_index: start,
+            cards: used,
+            result: res,
+            sensitive: sensitive
+        };
+    }
+    
+    _swap_result(start) {
+        let d2 = [...this.deck];
+        if (start + 1 >= d2.length) return [null, 0];
+        
+        // 交換第1、2張牌
+        [d2[start], d2[start + 1]] = [d2[start + 1], d2[start]];
+        
+        const sim2 = new Simulator(d2);
+        const r2 = sim2.simulate_round(start, { no_swap: true });
+        if (!r2) return [null, 0];
+        
+        return [r2.result, r2.cards.length];
+    }
+}
+
+// =============================================
+    // === 【新增】卡色 (BBBR/RRRB) 邏輯 ===
+    // =============================================
+    
+    // 全域變數,用來儲存當前牌局資料
+    let $ROUNDS = []; 
+    
+    /**
+     * 【新增】卡色邏輯的啟動函式
+     */
+    function runAutoColorSwap_Signal(rounds) {
+        log('SIG: 啟動「紅0/兩對」專用的卡色邏輯...', 'info');
+        $ROUNDS = rounds; // 儲存牌局資料
+        
+        // 1. 找出所有 T 局 (兩對局) 的索引
+        const lockedRounds = new Set();
+        $ROUNDS.forEach((round, idx) => {
+            // isT 是 applyTSignalLogic 幫我們標記好的
+            if (round.isT) { 
+                lockedRounds.add(idx);
+            }
+        });
+        
+        log(`SIG: T局 (兩對局) 已鎖定,共 ${lockedRounds.size} 局`, 'info');
+
+        // 2. 開始主流程
+        for (let ridx = 0; ridx < $ROUNDS.length; ridx++) {
+            if (lockedRounds.has(ridx)) continue; // 跳過 T 局
+            if ($ROUNDS[ridx]?.segment === 'B') continue; // 跳過 B 段
+
+            const pat1 = ['B', 'B', 'B', 'R'];
+            const pat2 = ['R', 'R', 'R', 'B'];
+            const s1 = scoreRound($ROUNDS[ridx], pat1);
+            const s2 = scoreRound($ROUNDS[ridx], pat2);
+            
+            const first = (s1.match > s2.match || (s1.match === s2.match && s1.deficit < s2.deficit)) ? pat1 : s2.match > s1.match ? pat2 : pat1;
+            const second = (first === pat1) ? pat2 : pat1;
+
+            if (solvePattern(ridx, first, lockedRounds) || solvePattern(ridx, second, lockedRounds)) {
+                lockedRounds.add(ridx); // 處理完畢,鎖定這局
+            }
+        }
+        
+        log('SIG: 卡色邏輯執行完畢。', 'success');
+        return $ROUNDS; // 返回修改後的牌局
+    }
+
+    /**
+     * 【新增】計分
+     */
+    function scoreRound(r, pattern) {
+        if (!r || !r.cards) return { match: 0, deficit: 99 };
+        const n = Math.min(4, r.cards.length);
+        let match = 0, deficit = 0;
+        for (let i = 0; i < n; i++) {
+            if (r.cards[i] && r.cards[i].back_color === pattern[i]) match++;
+            else deficit++;
+        }
+        return { match, deficit };
+    }
+
+    /**
+     * 【新增】核心:解決一局的卡色
+     */
+    function solvePattern(ridx, pattern, lockedRounds) {
+        const round_to_solve = $ROUNDS[ridx];
+        if (!round_to_solve || !round_to_solve.cards) return false;
+        
+        const n = Math.min(4, round_to_solve.cards.length); // 只處理前4張
+        const sandbox_cards = round_to_solve.cards.map(c => c.clone()); // 建立沙盒
+        
+        for (let p = 0; p < n; p++) {
+            if (sandbox_cards[p].back_color === pattern[p]) continue;
+
+            const needColor = pattern[p];
+            const currentCard = sandbox_cards[p];
+            
+            let best_swap_cand = null; // { r_idx, c_idx }
+            
+            for (const cand of sourceCandidates(needColor, ridx, p, lockedRounds)) {
+                const { r: cand_r, c: cand_c } = cand;
+                const candCard = $ROUNDS[cand_r].cards[cand_c];
+
+                // === 【保護邏輯】 ===
+                
+                // 規則1:必須是相同「牌面」(Rank)
+                const isSameRank = (currentCard.rank === candCard.rank);
+                if (!isSameRank) {
+                    continue; 
+                }
+                
+                // 規則2:檢查 S 局訊號牌
+                const isCurrentSignal = currentCard.isSignalCard();
+                const isCandSignal = candCard.isSignalCard();
+                
+                if (isCurrentSignal !== isCandSignal) {
+                    continue; 
+                }
+                // === 保護邏輯結束 ===
+                
+                best_swap_cand = { r_idx: cand_r, c_idx: cand_c };
+                break; 
+            }
+
+            if (best_swap_cand) {
+                const { r_idx, c_idx } = best_swap_cand;
+                const donorCard = $ROUNDS[r_idx].cards[c_idx];
+                sandbox_cards[p] = donorCard; 
+                
+                swapCards_Internal($ROUNDS, 
+                    { r: ridx, c: p },
+                    { r: r_idx, c: c_idx }
+                );
+            } else {
+                const colorLabel = needColor === 'R' ? '紅背' : needColor === 'B' ? '藍背' : needColor;
+                const cardLabel = currentCard ? currentCard.short() : `位置${p + 1}`;
+                log(`卡色交換失敗:第 ${ridx + 1} 局 位置 ${p + 1}(目標 ${colorLabel},牌 ${cardLabel})找不到安全可行的交換方案。`, 'error');
+                return false; 
+            }
+        }
+        
+        return true; 
+    }
+
+    /**
+     * 【新增】尋找候選牌
+     */
+    function* sourceCandidates(needColor, current_ridx, current_pidx, lockedRounds) {
+        const current_round = $ROUNDS[current_ridx];
+        if (!current_round || !current_round.cards) return;
+        
+        for (let q = current_pidx + 1; q < 4; q++) { 
+            if (current_round.cards[q] && current_round.cards[q].back_color === needColor) {
+                yield { r: current_ridx, c: q };
+            }
+        }
+        
+        for (let i = current_ridx + 1; i < $ROUNDS.length; i++) {
+            if (lockedRounds.has(i)) continue; 
+            
+            const round_to_search = $ROUNDS[i];
+            if (!round_to_search || !round_to_search.cards) continue;
+            
+            const n = Math.min(4, round_to_search.cards.length); 
+            for (let q = 0; q < n; q++) {
+                if (round_to_search.cards[q] && round_to_search.cards[q].back_color === needColor) {
+                    yield { r: i, c: q };
+                }
+            }
+        }
+    }
+
+    /**
+     * 【新增】在 $ROUNDS 陣列中實際交換兩張牌
+     */
+    function swapCards_Internal(rounds, a, b) {
+        if (!a || !b) return;
+        const A = rounds?.[a.r]?.cards?.[a.c];
+        const B = rounds?.[b.r]?.cards?.[b.c];
+        if (A === undefined || B === undefined) {
+            log("SIG: 卡色交換失敗:找不到卡牌物件。", 'error');
+            return;
+        }
+        [rounds[a.r].cards[a.c], rounds[b.r].cards[b.c]] = [B, A];
+    }
+
+
+// 簡化版紅色0點牌訊號邏輯
+function analyze_signal_cards(rounds) {
+    sLog('使用簡化版邏輯:有紅色0點牌的局 → 下一局變莊家');
+    
+    let adjustments = 0;
+    let signal_rounds = 0;
+    
+    // 1. 遍歷所有局,實施簡化邏輯(跳過T局)
+    for (let i = 0; i < rounds.length - 1; i++) {
+        const current_round = rounds[i];
+        const next_round = rounds[i + 1];
+        
+        if (!current_round.cards) continue;
+        
+        // 跳過T局:T局訊號優先
+        if (current_round.isT) {
+            sLog(`第${i + 1}局是T局,跳過S局訊號處理`);
+            continue;
+        }
+        
+        const has_signal = current_round.cards.some(card => card.isSignalCard());
+        
+        if (has_signal) {
+            signal_rounds++;
+            // 有紅色0點牌:下一局應該是莊家
+            if (next_round.result !== '莊') {
+                // 嘗試通過交換前兩張牌讓下一局變成莊家
+                const swapped_result = swapFirstTwoCards(next_round);
+                if (swapped_result === '莊') {
+                    executeCardSwap(next_round);
+                    const original_result = next_round.result;
+                    next_round.result = '莊';
+                    next_round.swapped = true;
+                    adjustments++;
+                    sLog(`第${i+1}局有紅色0點牌 → 第${i+2}局:${original_result} → 莊`);
+                } else {
+                    sLog(`第${i+1}局有紅色0點牌,但第${i+2}局無法調整為莊家`, 'warn');
+                }
+            } else {
+                sLog(`第${i+1}局有紅色0點牌 → 第${i+2}局已經是莊家`);
+            }
+        } else {
+            // 沒有紅色0點牌:如果下一局是莊家,應該改成閒家
+            if (next_round.result === '莊') {
+                const swapped_result = swapFirstTwoCards(next_round);
+                if (swapped_result !== '莊' && swapped_result !== '和') {
+                    executeCardSwap(next_round);
+                    next_round.result = swapped_result;
+                    next_round.swapped = true;
+                    adjustments++;
+                    sLog(`第${i+1}局無紅色0點牌 → 第${i+2}局:莊 → ${swapped_result}`);
+                } else {
+                    sLog(`第${i+1}局無紅色0點牌,但第${i+2}局無法調整為閒家`, 'warn');
+                }
+            }
+        }
+    }
+    
+    // 2. 處理最後一局對第一局的影響(循環邏輯)
+    if (rounds.length > 1) {
+        const last_round = rounds[rounds.length - 1];
+        const first_round = rounds[0];
+        
+        // 跳過T局:T局訊號優先
+        if (last_round.isT) {
+            sLog(`最後一局是T局,跳過對第一局的S局訊號處理`);
+        } else if (last_round.cards) {
+            const has_signal_in_last = last_round.cards.some(card => card.isSignalCard());
+            
+            if (has_signal_in_last) {
+                signal_rounds++;
+                // 最後一局有訊號牌:第一局應該是莊家
+                if (first_round.result !== '莊') {
+                    const swapped_result = swapFirstTwoCards(first_round);
+                    if (swapped_result === '莊') {
+                        executeCardSwap(first_round);
+                        const original_result = first_round.result;
+                        first_round.result = '莊';
+                        first_round.swapped = true;
+                        adjustments++;
+                        sLog(`第${rounds.length}局有紅色0點牌 → 第1局:${original_result} → 莊`);
+                    } else {
+                        sLog(`第${rounds.length}局有紅色0點牌,但第1局無法調整為莊家`, 'warn');
+                    }
+                }
+            } else {
+                // 最後一局沒有訊號牌:如果第一局是莊家,應該改成閒家
+                if (first_round.result === '莊') {
+                    const swapped_result = swapFirstTwoCards(first_round);
+                    if (swapped_result !== '莊') {
+                        executeCardSwap(first_round);
+                        first_round.result = swapped_result;
+                        first_round.swapped = true;
+                        adjustments++;
+                        sLog(`第${rounds.length}局無紅色0點牌 → 第1局:莊 → ${swapped_result}`);
+                    } else {
+                        sLog(`第${rounds.length}局無紅色0點牌,但第1局無法調整為閒家`, 'warn');
+                    }
+                }
+            }
+        }
+    }
+    
+    sLog(`完成調整:${adjustments} 局被修改`, 'success');
+    sLog(`包含紅色0點牌的局數:${signal_rounds}`);
+    
+    // 2. 重新計算S局和T局
+    const s_indices = compute_sidx_for_segment(rounds, 'A');
+    const t_indices = []; // T局:A段下一局是和局的局
+    
+    // 識別T局:基於isT標記(兩對局且下一局是和局)
+    for (let i = 0; i < rounds.length; i++) {
+        const current_round = rounds[i];
+        
+        if (current_round.isT) {
+            t_indices.push(i);
+        }
+    }
+    
+    const analysis = {
+        total_s_rounds: s_indices.length,
+        total_t_rounds: t_indices.length,
+        s_rounds_data: [],
+        t_rounds_data: [],
+        total_zero_in_s: 0,
+        total_signal_in_s: 0,
+        total_signal_in_t: 0, // 新增:T局中紅色0點牌
+        signal_rounds_total: signal_rounds,
+        target_banker_count: signal_rounds,
+        actual_banker_count: rounds.filter(r => r.result === '莊').length,
+        adjustments_made: adjustments
+    };
+    
+    // 3. 分析S局中的0點牌(保持原邏輯)
+    s_indices.forEach(idx => {
+        const round = rounds[idx];
+        if (!round) return;
+        
+        const zero_cards = round.cards.filter(card => card.isZero());
+        const signal_cards = round.cards.filter(card => card.isSignalCard());
+        
+        analysis.s_rounds_data.push({
+            round_index: idx,
+            round: round,
+            zero_count: zero_cards.length,
+            signal_count: signal_cards.length,
+            zero_cards: zero_cards,
+            signal_cards: signal_cards,
+            signal_value: signal_cards.length > 0 ? 1 : 0
+        });
+        
+        analysis.total_zero_in_s += zero_cards.length;
+        analysis.total_signal_in_s += signal_cards.length;
+    });
+    
+    // 4. 分析T局中的紅色0點牌(新增)
+    t_indices.forEach(idx => {
+        const round = rounds[idx];
+        if (!round) return;
+        
+        const signal_cards = round.cards.filter(card => card.isSignalCard());
+        
+        analysis.t_rounds_data.push({
+            round_index: idx,
+            round: round,
+            signal_count: signal_cards.length,
+            signal_cards: signal_cards,
+            signal_value: signal_cards.length > 0 ? 1 : 0
+        });
+        
+        analysis.total_signal_in_t += signal_cards.length;
+    });
+    
+    return analysis;
+}
+
+    /**
+     * 對外提供分析能力,供主頁面傳入牌局資料時使用
+     * @param {Array} sourceRounds - 來自主頁面的牌局資料
+     * @param {Object} [options] - 設定紅0訊號所使用的花色與數字
+     * @param {Array<string>} [options.suits]
+     * @param {Array<string>} [options.ranks]
+     * @param {Function} [statusCallback] - 供主頁面顯示進度用
+     * @returns {{ final_rounds: Array, analysis: Object }}
+     */
+    function analyze_external_rounds(sourceRounds, options = {}, statusCallback) {
+        const suits = Array.isArray(options.suits) ? options.suits.slice() : SIGNAL_CONFIG.suits.slice();
+        const ranks = Array.isArray(options.ranks) ? options.ranks.slice() : SIGNAL_CONFIG.ranks.slice();
+
+        SIGNAL_CONFIG.suits = suits;
+        SIGNAL_CONFIG.ranks = ranks;
+
+        const rounds = Array.isArray(sourceRounds) ? sourceRounds.map((round, idx) => {
+            const clonedRound = Object.assign({}, round);
+            const startIndex = typeof round.start_index === 'number' ? round.start_index : idx * 4;
+
+            clonedRound.cards = Array.isArray(round.cards)
+                ? round.cards.map((card, cardIdx) => {
+                    if (!card) return card;
+                    if (card instanceof Card) {
+                        return card.clone();
+                    }
+                    const pos = typeof card.pos === 'number' ? card.pos : startIndex + cardIdx;
+                    const newCard = new Card(card.rank, card.suit, pos);
+                    Object.keys(card).forEach((key) => {
+                        if (key === 'rank' || key === 'suit' || key === 'pos') return;
+                        newCard[key] = card[key];
+                    });
+                    return newCard;
+                })
+                : [];
+
+            return clonedRound;
+        }) : [];
+
+        if (typeof statusCallback === 'function') {
+            statusCallback(`紅0 模式:開始分析 ${rounds.length} 局資料...`);
+        }
+
+        const processedRounds = applyTSignalLogic(rounds);
+
+        const analysis = analyze_signal_cards(processedRounds);
+
+        if (typeof statusCallback === 'function') {
+            statusCallback(`紅0 模式:完成分析,調整 ${analysis.adjustments_made} 局。`);
+        }
+
+        return {
+            final_rounds: processedRounds,
+            analysis
+        };
+    }
+
+// 模擬交換前兩張牌的結果
+function swapFirstTwoCards(round) {
+    if (!round.cards || round.cards.length < 2) return null;
+    
+    // 創建副本進行模擬
+    const temp_cards = round.cards.map(c => c.clone());
+    [temp_cards[0], temp_cards[1]] = [temp_cards[1], temp_cards[0]];
+    
+    // 重新模擬這局
+    const temp_sim = new Simulator(temp_cards);
+    const temp_result = temp_sim.simulate_round(0, { no_swap: true });
+    
+    return temp_result ? temp_result.result : null;
+}
+
+// 執行實際的卡牌交換
+function executeCardSwap(round) {
+    if (!round.cards || round.cards.length < 2) return;
+    [round.cards[0], round.cards[1]] = [round.cards[1], round.cards[0]];
+}
+
+
+
+// 檢查是否有兩對
+function hasTwoPairs(round) {
+    if (!round.cards || round.cards.length < 4) return false;
+    
+    // 統計每種數字的張數
+    const rankCounts = {};
+    for (const card of round.cards) {
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+    }
+    
+    // 檢查是否有至少兩個「剛好」一對(避免 AAA22 被視為兩對)
+    const pairs = Object.values(rankCounts).filter(count => count === 2);
+    return pairs.length >= 2;
+}
+
+
+// 日誌系統
+const LOG_ALLOW_PATTERNS = [
+    /^訊號牌測試系統初始化完成/,
+    /^訊號設定已更新/,
+    /^\s*🔍 /,
+    /^\[交換\]/,
+    /^生成完成!?$/,
+    /^S局訊號牌張數/,
+    /^第\d+局\(非S\)：有/
+];
+
+function shouldDisplayLogMessage(message, type = 'info') {
+    if (type === 'error') return true;
+    if (typeof message !== 'string') return false;
+    return LOG_ALLOW_PATTERNS.some(pattern => pattern.test(message));
+}
+
+function log(message, type = 'info') {
+    if (!shouldDisplayLogMessage(message, type)) return;
+    
+    const logArea = document.getElementById('logArea');
+    const timestamp = new Date().toLocaleTimeString();
+    if (logArea) {
+        const logEntry = document.createElement('div');
+        logEntry.className = type;
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        logArea.appendChild(logEntry);
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+    console.log(`[${type.toUpperCase()}] ${message}`);
+}
+
+// 更新統計
+function updateStats(data) {
+    document.getElementById('totalRounds').textContent = data.totalRounds || 0;
+    document.getElementById('bankerCount').textContent = data.bankerCount || 0;
+    document.getElementById('playerCount').textContent = data.playerCount || 0;
+    document.getElementById('tieCount').textContent = data.tieCount || 0;
+    document.getElementById('sSignalCards').textContent = data.sSignalCards || 0;
+    const nonSSignals = data.nonSSignalCards ?? data.tSignalCards ?? 0;
+    document.getElementById('tSignalCards').textContent = nonSSignals;
+    document.getElementById('twoPairsCount').textContent = data.twoPairsCount || 0;
+}
+
+// ==================================================================
+// === 請用這個新版本,替換掉您 signals.js 裡的舊版本 ===
+// ==================================================================
+function renderRoundsTable(rounds, analysis) {
+    const table = document.getElementById('roundsTable');
+    const tbody = document.getElementById('roundsBody');
+    
+    tbody.innerHTML = '';
+    
+    if (!rounds || rounds.length === 0) {
+        table.style.display = 'none';
+        return;
+    }
+    
+    const tieIndices = new Set();
+    rounds.forEach((round, index) => {
+        if (round.result === '和') {
+            tieIndices.add(index);
+        }
+    });
+
+    rounds.forEach((round, index) => {
+        const row = document.createElement('tr');
+        
+        const isTwoPairsRound = hasTwoPairs(round);
+        if (isTwoPairsRound) {
+            row.classList.add('two-pairs-round');
+        }
+        
+        const segmentLabel = round.segment || '';
+        let typeDisplay = segmentLabel || '一般';
+        const nextIndex = (index + 1) % rounds.length;
+        if (tieIndices.has(nextIndex)) {
+            typeDisplay = segmentLabel ? `${segmentLabel}段` : 'T段';
+        } else if (segmentLabel) {
+            typeDisplay = `${segmentLabel}段`;
+        }
+
+        const cards_html = (round.cards || []).map((card, cardIdx) => {
+            if (!card) {
+                return `<span class="card-label non-s-signal-card" data-action="card" data-r="${index}" data-c="${cardIdx}">--</span>`;
+            }
+            const classes = ['card-label'];
+            
+            if (card.back_color === 'B') {
+                classes.push('card-back-blue');
+            } else if (card.back_color === 'R') {
+                classes.push('card-back-red');
+            } else {
+                classes.push('card-back-unknown');
+            }
+
+            const isSignalCard = typeof card.isSignalCard === 'function' && card.isSignalCard();
+            if (isSignalCard) {
+                classes.push('s-signal-card');
+            } else {
+                classes.push('non-s-signal-card');
+            }
+
+            return `<span class="${classes.join(' ')}" data-action="card" data-r="${index}" data-c="${cardIdx}">${card.short()}</span>`;
+        }).join(' ');
+        
+        const next_round = rounds[nextIndex];
+        let next_result = next_round ? next_round.result : `第1局(${rounds[0].result})`;
+        
+        const swapped_result = swapFirstTwoCards(round);
+        const swapped_display = swapped_result || '無法對調';
+        
+        const chipCount = 6;
+        const colorChips = Array.from({ length: chipCount }, (_, chipIndex) => {
+            const card = round.cards && round.cards[chipIndex] ? round.cards[chipIndex] : null;
+            if (!card) {
+                return `<span class="color-chip unknown"></span>`;
+            }
+            const color = card.back_color === 'R' ? 'red' : card.back_color === 'B' ? 'blue' : 'unknown';
+            const label = card.back_color === 'R' ? 'X' : card.back_color === 'B' ? 'O' : '';
+            return `<span class="color-chip ${color}">${label}</span>`;
+        }).join('');
+        const colorCell = `<span class="color-chips">${colorChips}</span>`;
+        
+        const resultDisplay = round.result || '';
+        let resultClass = '';
+        if (resultDisplay === '莊') resultClass = 'result-banker';
+        else if (resultDisplay === '閒') resultClass = 'result-player';
+        else if (resultDisplay === '和') resultClass = 'result-tie';
+        
+        const sSignal = round.cards && round.cards.some(card => typeof card.isSignalCard === 'function' && card.isSignalCard()) ? '✓' : '';
+        const tSignal = round.isT ? '✓' : '';
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${typeDisplay}</td>
+            <td>${cards_html}</td>
+            <td>${colorCell}</td>
+            <td class="${resultClass}">${resultDisplay}</td>
+            <td>${next_result}</td>
+            <td>${swapped_display}</td>
+            <td>${sSignal}</td>
+            <td>${tSignal}</td>
+        `;
+        row.dataset.r = index;
+        row.classList.add('round-row');
+
+        tbody.appendChild(row);
+    });
+    
+    table.style.display = 'table';
+    updateSelectionHighlights();
+    updateEditUI();
+}
+
+
+// 全域變數
+let currentRounds = null;
+let currentAnalysis = null;
+const EDIT_STATE = { mode: 'none', first: null, second: null };
+let editEnabled = false;
+
+function setEditButtonsAvailability(enabled) {
+    editEnabled = Boolean(enabled);
+    if (!editEnabled) {
+        EDIT_STATE.mode = 'none';
+        EDIT_STATE.first = null;
+        EDIT_STATE.second = null;
+    }
+    updateEditUI();
+    updateSelectionHighlights();
+}
+
+function updateEditUI() {
+    const canModify = editEnabled && Array.isArray(currentRounds) && currentRounds.length > 0;
+    const btnEdit = document.getElementById('btnEdit');
+    const btnRound = document.getElementById('btnRound');
+    const btnSwap = document.getElementById('btnSwap');
+    const btnCancel = document.getElementById('btnCancelEdit');
+    const btnApply = document.getElementById('btnApplyChanges');
+    if (btnEdit) {
+        btnEdit.disabled = !canModify;
+        btnEdit.classList.toggle('active', canModify && EDIT_STATE.mode === 'card');
+    }
+    if (btnRound) {
+        btnRound.disabled = !canModify;
+        btnRound.classList.toggle('active', canModify && EDIT_STATE.mode === 'round');
+    }
+    const hasFirst = Boolean(EDIT_STATE.first);
+    const hasSecond = Boolean(EDIT_STATE.second);
+    if (btnSwap) {
+        const swapReady = canModify && EDIT_STATE.mode !== 'none' && hasFirst && hasSecond;
+        btnSwap.disabled = !swapReady;
+    }
+    if (btnCancel) {
+        const canCancel = canModify && (EDIT_STATE.mode !== 'none' || hasFirst || hasSecond);
+        btnCancel.disabled = !canCancel;
+    }
+    if (btnApply) {
+        btnApply.disabled = !canModify;
+    }
+}
+
+function updateSelectionHighlights() {
+    const cardEls = document.querySelectorAll('#roundsBody span[data-action="card"]');
+    cardEls.forEach(el => {
+        el.classList.remove('selected-first', 'selected-second');
+    });
+    const rowEls = document.querySelectorAll('#roundsBody tr[data-r]');
+    rowEls.forEach(row => {
+        row.classList.remove('selected-first', 'selected-second');
+    });
+    if (!editEnabled) return;
+    if (EDIT_STATE.mode === 'card') {
+        if (EDIT_STATE.first) {
+            const el = document.querySelector(`#roundsBody span[data-action="card"][data-r="${EDIT_STATE.first.r}"][data-c="${EDIT_STATE.first.c}"]`);
+            if (el) el.classList.add('selected-first');
+        }
+        if (EDIT_STATE.second) {
+            const el = document.querySelector(`#roundsBody span[data-action="card"][data-r="${EDIT_STATE.second.r}"][data-c="${EDIT_STATE.second.c}"]`);
+            if (el) el.classList.add('selected-second');
+        }
+    } else if (EDIT_STATE.mode === 'round') {
+        if (EDIT_STATE.first) {
+            const row = document.querySelector(`#roundsBody tr[data-r="${EDIT_STATE.first.r}"]`);
+            if (row) row.classList.add('selected-first');
+        }
+        if (EDIT_STATE.second) {
+            const row = document.querySelector(`#roundsBody tr[data-r="${EDIT_STATE.second.r}"]`);
+            if (row) row.classList.add('selected-second');
+        }
+    }
+}
+
+function suitLetterFromSymbol(symbol) {
+    if (!symbol) return null;
+    return SUIT_SYMBOL_TO_LETTER_MAP[symbol] || SUIT_SYMBOL_TO_LETTER_MAP[symbol.toUpperCase()] || null;
+}
+
+function countSignalCardsInRounds(rounds, predicate) {
+    if (!Array.isArray(rounds) || rounds.length === 0) return 0;
+    let total = 0;
+    rounds.forEach((round, idx) => {
+        if (!round || !Array.isArray(round.cards)) return;
+        if (typeof predicate === 'function' && !predicate(round, idx)) return;
+        for (const card of round.cards) {
+            if (!card) continue;
+            const fallbackSignal = SIGNAL_CONFIG.suits.includes(card.suit) && SIGNAL_CONFIG.ranks.includes(card.rank);
+            const isSignal = typeof card.isSignalCard === 'function'
+                ? card.isSignalCard()
+                : fallbackSignal;
+            if (isSignal) total++;
+        }
+    });
+    return total;
+}
+
+function computeDeckSummary(rounds) {
+    if (!Array.isArray(rounds) || rounds.length === 0) return null;
+    const seenUnique = new Set(); // 避免重複計算同一張實體卡牌
+    const uniqueCards = [];
+    const pushCard = (card) => {
+        if (!card) return;
+        const pos = card.pos;
+        if (pos !== undefined && pos !== null) {
+            if (seenUnique.has(pos)) return;
+            seenUnique.add(pos);
+        } else {
+            const fallbackKey = `${card.suit || ''}_${card.rank || ''}_${card.label || ''}_${card.short ? card.short() : ''}`;
+            if (seenUnique.has(fallbackKey)) return;
+            seenUnique.add(fallbackKey);
+        }
+        uniqueCards.push(card);
+    };
+    rounds.forEach(round => {
+        (round.cards || []).forEach(pushCard);
+    });
+    const byRankSuit = {}; // 花色 + 點數 -> 張數
+    const cardsByRankSuit = {}; // 花色 + 點數 -> 實際卡牌陣列,用來計算紅背/藍背
+    const suitTotals = {}; // 每個花色的總張數
+    uniqueCards.forEach(card => {
+        const suitLetter = suitLetterFromSymbol(card.suit);
+        const rank = card.rank || null;
+        if (!suitLetter || !rank) return;
+        const key = `${suitLetter}_${rank}`;
+        byRankSuit[key] = (byRankSuit[key] || 0) + 1;
+        if (!cardsByRankSuit[key]) cardsByRankSuit[key] = [];
+        cardsByRankSuit[key].push(card);
+        suitTotals[suitLetter] = (suitTotals[suitLetter] || 0) + 1;
+    });
+    return {
+        by_rank_suit: byRankSuit,
+        suit_totals: suitTotals,
+        cards_by_rank_suit: cardsByRankSuit,
+        total_cards: uniqueCards.length
+    };
+}
+
+function renderDeckSummary(summary) {
+    const container = document.getElementById('signalSummary');
+    if (!container) return;
+    if (!summary || !summary.by_rank_suit) {
+        container.innerHTML = '<div class="summary-title">牌靴分布</div><div class="stats-total">尚無資料</div>';
+        return;
+    }
+    const ranks = SIGNAL_RANKS_ORDER; // 牌面順序
+    const suits = SIGNAL_SUITS_ORDER; // 花色順序
+    const byRankSuit = summary.by_rank_suit;
+    const cardsByRankSuit = summary.cards_by_rank_suit || {};
+    const suitTotals = summary.suit_totals || {};
+    let html = '<div class="summary-title">牌靴分布</div>';
+    html += '<table class="stats-table signal-table"><thead><tr><th></th>';
+    html += ranks.map(r => `<th>${r}</th>`).join('');
+    html += '<th>合計</th></tr></thead><tbody>';
+    for (const suit of suits) { // 逐花色列出
+        const symbol = SUIT_LETTER_TO_SYMBOL_MAP[suit] || suit;
+        html += `<tr><td>${symbol}</td>`;
+        let rowTotal = 0;
+        for (const rank of ranks) {
+            const key = `${suit}_${rank}`;
+            const val = byRankSuit[key] || 0; // 此花色 + 點數的張數
+            rowTotal += val;
+            let black = 0, red = 0;
+            if (val && cardsByRankSuit[key]) {
+                for (const card of cardsByRankSuit[key]) { // 計算紅背 / 藍背張數
+                    if (card.color === 'B' || card.back_color === 'B') black++;
+                    else if (card.color === 'R' || card.back_color === 'R') red++;
+                }
+            }
+            html += `<td>${black}/${red}</td>`;
+        }
+        html += `<td>${rowTotal}</td></tr>`;
+    }
+    const columnTotals = {};
+    for (const rank of ranks) {
+        columnTotals[rank] = 0;
+        for (const suit of suits) {
+            columnTotals[rank] += byRankSuit[`${suit}_${rank}`] || 0;
+        }
+    }
+    html += '<tr><td>合計</td>';
+    for (const rank of ranks) {
+        html += `<td>${columnTotals[rank] || 0}</td>`;
+    }
+    const totalCards = summary.total_cards || 0; // 全部統計到的實體卡張數
+    html += `<td>${totalCards}</td></tr>`;
+    html += '</tbody></table>';
+    html += `<div class="stats-total">牌靴總張數:<strong>${totalCards}/416</strong></div>`;
+    container.innerHTML = html;
+}
+
+function resetEditState() {
+    EDIT_STATE.mode = 'none';
+    EDIT_STATE.first = null;
+    EDIT_STATE.second = null;
+    updateEditUI();
+    updateSelectionHighlights();
+}
+
+function activateEditMode(mode) {
+    if (!editEnabled || !Array.isArray(currentRounds) || currentRounds.length === 0) {
+        log('請先生成牌靴,再進行編輯。', 'error');
+        return;
+    }
+    if (EDIT_STATE.mode === mode) {
+        resetEditState();
+        return;
+    }
+    EDIT_STATE.mode = mode;
+    EDIT_STATE.first = null;
+    EDIT_STATE.second = null;
+    updateEditUI();
+    updateSelectionHighlights();
+    if (mode === 'card') {
+        log('編輯模式:請點選第一張牌。', 'info');
+    } else if (mode === 'round') {
+        log('局交換模式:請點選第一局。', 'info');
+    }
+}
+
+function handleCardSelection(r, c) {
+    if (EDIT_STATE.mode !== 'card' || !editEnabled) return;
+    if (!EDIT_STATE.first || (EDIT_STATE.first && EDIT_STATE.second)) {
+        EDIT_STATE.first = { r, c };
+        EDIT_STATE.second = null;
+    } else if (EDIT_STATE.first && EDIT_STATE.first.r === r && EDIT_STATE.first.c === c) {
+        EDIT_STATE.first = null;
+    } else if (!EDIT_STATE.second) {
+        EDIT_STATE.second = { r, c };
+    } else {
+        EDIT_STATE.first = { r, c };
+        EDIT_STATE.second = null;
+    }
+    updateEditUI();
+    updateSelectionHighlights();
+}
+
+function handleRowSelection(r) {
+    if (EDIT_STATE.mode !== 'round' || !editEnabled) return;
+    if (!EDIT_STATE.first || (EDIT_STATE.first && EDIT_STATE.second)) {
+        EDIT_STATE.first = { r };
+        EDIT_STATE.second = null;
+    } else if (EDIT_STATE.first && EDIT_STATE.first.r === r) {
+        EDIT_STATE.first = null;
+    } else if (!EDIT_STATE.second) {
+        EDIT_STATE.second = { r };
+    } else {
+        EDIT_STATE.first = { r };
+        EDIT_STATE.second = null;
+    }
+    updateEditUI();
+    updateSelectionHighlights();
+}
+
+function handleTableClick(event) {
+    if (!editEnabled) return;
+    const cardSpan = event.target.closest('span[data-action="card"]');
+    if (cardSpan) {
+        const r = Number(cardSpan.dataset.r);
+        const c = Number(cardSpan.dataset.c);
+        handleCardSelection(r, c);
+        return;
+    }
+    const row = event.target.closest('tr[data-r]');
+    if (row) {
+        const r = Number(row.dataset.r);
+        handleRowSelection(r);
+    }
+}
+
+function executeSwapAction() {
+    if (!editEnabled || !Array.isArray(currentRounds) || currentRounds.length === 0) {
+        log('請先生成牌靴,再進行編輯。', 'error');
+        return;
+    }
+    if (EDIT_STATE.mode === 'card') {
+        if (!EDIT_STATE.first || !EDIT_STATE.second) {
+            log('請先選擇兩張要交換的牌。', 'warn');
+            return;
+        }
+        const { r: r1, c: c1 } = EDIT_STATE.first;
+        const { r: r2, c: c2 } = EDIT_STATE.second;
+        const cardA = currentRounds?.[r1]?.cards?.[c1];
+        const cardB = currentRounds?.[r2]?.cards?.[c2];
+        if (!cardA || !cardB) {
+            log('卡交換失敗:選取的牌不存在。', 'error');
+            return;
+        }
+        [currentRounds[r1].cards[c1], currentRounds[r2].cards[c2]] = [cardB, cardA];
+        log(`已交換第 ${r1 + 1} 局第 ${c1 + 1} 張與第 ${r2 + 1} 局第 ${c2 + 1} 張。`, 'success');
+        EDIT_STATE.first = null;
+        EDIT_STATE.second = null;
+        refreshAnalysisAndRender();
+        updateEditUI();
+        updateSelectionHighlights();
+    } else if (EDIT_STATE.mode === 'round') {
+        if (!EDIT_STATE.first || !EDIT_STATE.second) {
+            log('請先選擇兩個要交換的局。', 'warn');
+            return;
+        }
+        const r1 = EDIT_STATE.first.r;
+        const r2 = EDIT_STATE.second.r;
+        if (r1 === r2) {
+            log('同一局不需要交換。', 'info');
+            return;
+        }
+        const roundA = currentRounds?.[r1];
+        const roundB = currentRounds?.[r2];
+        if (!roundA || !roundB) {
+            log('局交換失敗:找不到指定的局。', 'error');
+            return;
+        }
+        [currentRounds[r1], currentRounds[r2]] = [roundB, roundA];
+        log(`已交換第 ${r1 + 1} 局與第 ${r2 + 1} 局。`, 'success');
+        EDIT_STATE.first = null;
+        EDIT_STATE.second = null;
+        refreshAnalysisAndRender();
+        updateEditUI();
+        updateSelectionHighlights();
+    } else {
+        log('請先選擇編輯或局交換模式。', 'info');
+    }
+}
+
+function buildStatsFromRounds() {
+    const totalRounds = Array.isArray(currentRounds) ? currentRounds.length : 0;
+    const bankerCount = currentRounds ? currentRounds.filter(r => r.result === '莊').length : 0;
+    const playerCount = currentRounds ? currentRounds.filter(r => r.result === '閒').length : 0;
+    const tieCount = currentRounds ? currentRounds.filter(r => r.result === '和').length : 0;
+    const twoPairsCount = currentRounds ? currentRounds.filter(hasTwoPairs).length : 0;
+    const deckSummary = computeDeckSummary(currentRounds || []);
+    const sIndices = Array.isArray(currentRounds) ? new Set(compute_sidx_for_segment(currentRounds, 'A')) : new Set();
+    const sSignalCards = countSignalCardsInRounds(currentRounds, (_, idx) => sIndices.has(idx));
+    const nonSSignalCards = countSignalCardsInRounds(currentRounds, (_, idx) => !sIndices.has(idx));
+    const tSignalCards = countSignalCardsInRounds(currentRounds, (round) => Boolean(round && round.isT));
+    return {
+        totalRounds,
+        bankerCount,
+        playerCount,
+        tieCount,
+        sSignalCards,
+        tSignalCards,
+        nonSSignalCards,
+        twoPairsCount,
+        deckSummary
+    };
+}
+
+function refreshAnalysisAndRender() {
+    if (!Array.isArray(currentRounds)) return;
+    try {
+        currentAnalysis = analyze_signal_cards(currentRounds);
+    } catch (error) {
+        log(`重新分析失敗:${error && error.message ? error.message : error}`, 'error');
+        currentAnalysis = null;
+    }
+    const stats = buildStatsFromRounds();
+    updateStats(stats);
+    renderRoundsTable(currentRounds, currentAnalysis);
+    renderDeckSummary(stats.deckSummary);
+    renderStatsGridPreview(currentRounds);
+}
+
+// 主要生成函數 - 使用完整的ABC段排列並自動分析
+async function generateShoe() {
+    const btn = document.getElementById('generateBtn');
+    const autoColorBtn = document.getElementById('btnAutoColor');
+    
+    btn.disabled = true;
+    if (autoColorBtn) autoColorBtn.disabled = true;
+    
+    try {
+        log('開始生成牌靴...', 'info');
+
+        // 確保使用目前 UI 選擇的花色與數字
+        applySignalConfig();
+        
+        let result = null;
+        let attempt = 0;
+        
+        // 重試直到成功為止
+        while (!result) {
+            attempt++;
+            log(`嘗試生成第 ${attempt} 次...`, 'info');
+            
+            // 1. 建立牌組
+            const deck = build_shuffled_deck();
+            log(`建立了 ${deck.length} 張牌的牌組`, 'info');
+            
+            // 2. 使用完整的ABC段排列邏輯
+            try {
+                result = pack_all_sensitive_and_segment(deck);
+            } catch (e) {
+                log(`第 ${attempt} 次嘗試失敗,重新生成... (${e && e.message ? e.message : e})`, 'warn');
+                result = null;
+                continue;
+            }
+            
+            if (!result || !result.final_rounds || result.final_rounds.length === 0) {
+                log(`第 ${attempt} 次嘗試失敗,重新生成...`, 'warn');
+                result = null; // 確保繼續重試
+                continue;
+            }
+        }
+        
+        log(`生成成功!總共嘗試 ${attempt} 次`, 'success');
+        currentRounds = result.final_rounds;
+        
+        // 3. 統計各段數量
+        const a_count = result.a_rounds.length;
+        const b_count = Array.isArray(result.b_rounds) ? result.b_rounds.length : 0;
+        const c_count = result.c_cards.length > 0 ? 1 : 0;
+        const total_count = currentRounds.length;
+        
+        log(`A段: ${a_count}局 (敏感局)`, 'info');
+        log(`B段: ${b_count}局 (一般局)`, b_count === 0 ? 'info' : 'warn');
+        log(`C段: ${c_count}局 (殘牌)`, 'info');
+        log(`總計: ${total_count}局`, 'info');
+        
+        // 4. 進行S局訊號分析和調整（T局已於生成流程內處理完畢）
+        sLog('開始分析S局訊號並調整莊閒...');
+        refreshAnalysisAndRender();
+        const stats = buildStatsFromRounds();
+        
+        log(`生成完成!`, 'success');
+        if (currentAnalysis) {
+            log(`包含訊號牌的局數: ${currentAnalysis.signal_rounds_total}`, 'info');
+            log(`調整局數: ${currentAnalysis.adjustments_made}`, 'info');
+            log(`實際莊家局數: ${currentAnalysis.actual_banker_count}`, 'info');
+            sLog(`S局數量: ${currentAnalysis.total_s_rounds}`);
+            log(`T局數量: ${currentAnalysis.total_t_rounds}`, 'info');
+            sLog(`S局中紅色0點牌: ${currentAnalysis.total_signal_in_s}`);
+            log(`T局中紅色0點牌: ${currentAnalysis.total_signal_in_t}`, 'info');
+        }
+        log(`莊家局數: ${stats.bankerCount}、閒家局數: ${stats.playerCount}、和局數: ${stats.tieCount}`, 'info');
+        log(`兩對局數: ${stats.twoPairsCount}`, 'info');
+        log(`S局訊號牌張數: ${stats.sSignalCards} (非S局訊號牌張數: ${stats.nonSSignalCards})`, 'info');
+        log(`T局訊號牌張數: ${stats.tSignalCards}`, 'info');
+        if (stats.deckSummary) {
+            log(`牌靴已統計張數: ${stats.deckSummary.total_cards}/416`, 'info');
+        }
+        setEditButtonsAvailability(true);
+        resetEditState();
+        const sIndicesForLog = new Set(compute_sidx_for_segment(currentRounds, 'A'));
+        log('=== 非 S 局訊號牌檢查 ===', 'info');
+        let manualNonSSignalCount = 0;
+        currentRounds.forEach((round, idx) => {
+            if (!round || sIndicesForLog.has(idx)) return;
+            const signalCards = round.cards.filter(card => card && card.isSignalCard());
+            if (signalCards.length > 0) {
+                log(`第${idx + 1}局(非S)：有 ${signalCards.length} 張訊號牌 - ${signalCards.map(c => c.short()).join(', ')}`, 'info');
+                manualNonSSignalCount += signalCards.length;
+            }
+        });
+        log(`手動統計非 S 局訊號牌總數：${manualNonSSignalCount}`, 'info');
+        let totalSignalInDeck = 0;
+        const seenSignalCardKeys = new Set();
+        currentRounds.forEach(round => {
+            if (!round || !Array.isArray(round.cards)) return;
+            round.cards.forEach(card => {
+                if (!card || !card.isSignalCard()) return;
+                const key = (card.pos !== undefined && card.pos !== null)
+                    ? `pos:${card.pos}`
+                    : `fallback:${card.suit || ''}_${card.rank || ''}_${card.label || ''}_${typeof card.short === 'function' ? card.short() : ''}`;
+                if (seenSignalCardKeys.has(key)) return;
+                seenSignalCardKeys.add(key);
+                totalSignalInDeck++;
+            });
+        });
+       
+        // 顯示詳細訊號資訊
+        if (currentAnalysis && Array.isArray(currentAnalysis.s_rounds_data)) {
+            currentAnalysis.s_rounds_data.forEach(sr => {
+                if (sr.signal_value > 0) {
+                    sLog(`第${sr.round_index + 1}局(S局): 訊號值=${sr.signal_value}, 紅色0點牌=${sr.signal_cards.map(c => c.short()).join(',')}`);
+                }
+            });
+        }
+        
+    } catch (error) {
+        log(`生成失敗: ${error.message}`, 'error');
+        setEditButtonsAvailability(false);
+    } finally {
+        btn.disabled = false;
+        if (autoColorBtn && currentRounds && currentRounds.length) autoColorBtn.disabled = false;
+    }
+}
+
+// 分析S局訊號
+async function analyzeSignals() {
+    if (!currentRounds) {
+        log('請先生成牌靴', 'error');
+        return;
+    }
+    
+    sLog('開始分析S局訊號...');
+    
+    try {
+        // 分析紅色0點牌訊號並調整莊家局數量
+        currentAnalysis = analyze_signal_cards(currentRounds);
+        
+        const stats = {
+            totalSensitive: document.getElementById('totalSensitive').textContent,
+            sRoundsCount: currentAnalysis.total_s_rounds,
+            zeroInS: currentAnalysis.total_zero_in_s,
+            signalInS: currentAnalysis.total_signal_in_s,
+            bankerCount: currentRounds.filter(r => r.result === '莊').length,
+            playerCount: currentRounds.filter(r => r.result === '閒').length,
+            tieCount: currentRounds.filter(r => r.result === '和').length,
+            signalRounds: currentAnalysis.signal_rounds_total
+        };
+        
+        updateStats(stats);
+        renderRoundsTable(currentRounds, currentAnalysis);
+        
+        log(`分析完成!`, 'success');
+        log(`包含紅色0點牌的局數: ${currentAnalysis.signal_rounds_total}`, 'info');
+        log(`調整局數: ${currentAnalysis.adjustments_made}`, 'info');
+        log(`實際莊家局數: ${currentAnalysis.actual_banker_count}`, 'info');
+        sLog(`S局數量: ${currentAnalysis.total_s_rounds}`);
+        sLog(`S局中紅色0點牌: ${currentAnalysis.total_signal_in_s}`);
+        
+        // 顯示詳細訊號資訊
+        currentAnalysis.s_rounds_data.forEach(sr => {
+            if (sr.signal_value > 0) {
+                sLog(`第${sr.round_index + 1}局(S局): 訊號值=${sr.signal_value}, 紅色0點牌=${sr.signal_cards.map(c => c.short()).join(',')}`);
+            }
+        });
+        
+    } catch (error) {
+        log(`分析失敗: ${error.message}`, 'error');
+    }
+}
+
+// 清空
+function clearAll() {
+    currentRounds = null;
+    currentAnalysis = null;
+    
+    updateStats({
+        totalRounds: 0,
+        bankerCount: 0,
+        playerCount: 0,
+        tieCount: 0,
+        sSignalCards: 0,
+        nonSSignalCards: 0,
+        tSignalCards: 0,
+        twoPairsCount: 0,
+        deckSummary: null
+    });
+    renderDeckSummary(null);
+    renderStatsGridPreview(null);
+    
+    document.getElementById('roundsTable').style.display = 'none';
+    document.getElementById('logArea').innerHTML = '';
+    const autoColorBtn = document.getElementById('btnAutoColor');
+    if (autoColorBtn) autoColorBtn.disabled = true;
+    setEditButtonsAvailability(false);
+    log('已清空所有資料', 'info');
+}
+
+// === 通用檢查:確保有牌靴資料可供後續功能使用 ===
+function ensureRoundsReady(featureName) {
+    if (!currentRounds || currentRounds.length === 0) {
+        log(`請先生成牌靴,再使用「${featureName}」功能。`, 'error');
+        return false;
+    }
+    return true;
+}
+
+function flattenDeckFromRounds(rounds) {
+    const deck = [];
+    if (!Array.isArray(rounds)) return deck;
+    rounds.forEach(round => {
+        if (round && Array.isArray(round.cards)) {
+            deck.push(...round.cards);
+        }
+    });
+    return deck;
+}
+
+function getCardLabel(card) {
+    if (!card) return '';
+    if (typeof card.short === 'function') return card.short();
+    if (typeof card.label === 'string') return card.label;
+    const rank = card.rank || '';
+    const suit = card.suit || '';
+    return `${rank}${suit}`;
+}
+
+function getCardColorCode(card) {
+    if (!card) return '';
+    if (card.back_color) return card.back_color;
+    const suitLetter = suitLetterFromSymbol(card.suit);
+    if (!suitLetter) return '';
+    return (suitLetter === 'H' || suitLetter === 'D') ? 'R' : 'B';
+}
+
+function gridValueFromCard(card) {
+    if (!card) return '';
+    const rank = (card.rank || '').toString().toUpperCase();
+    if (!rank) return '';
+    if (rank === 'A') return '1';
+    if (['10', 'J', 'Q', 'K'].includes(rank)) return '0';
+    const parsed = parseInt(rank, 10);
+    if (!Number.isNaN(parsed)) return String(parsed);
+    return rank;
+}
+
+function isSignalConfiguredCard(card) {
+    if (!card) return false;
+    const suits = Array.isArray(SIGNAL_CONFIG?.suits) ? SIGNAL_CONFIG.suits : [];
+    const ranks = Array.isArray(SIGNAL_CONFIG?.ranks) ? SIGNAL_CONFIG.ranks : [];
+    if (!suits.length || !ranks.length) return false;
+    return suits.includes(card.suit) && ranks.includes(card.rank);
+}
+
+function buildPreviewGrid(deckCards, rounds) {
+    const COLS = 15;
+    const segmentByIndex = new Map();
+    const tPositions = new Set();
+    if (Array.isArray(rounds)) {
+        let cursor = 0;
+        rounds.forEach(round => {
+            const cards = Array.isArray(round?.cards) ? round.cards : [];
+            const len = cards.length;
+            for (let i = 0; i < len; i++) {
+                segmentByIndex.set(cursor + i, round.segment || '');
+            }
+            if (round && round.isT) {
+                for (let i = 0; i < len; i++) {
+                    tPositions.add(cursor + i);
+                }
+            }
+            cursor += len;
+        });
+    }
+    return deckCards.map((card, idx) => {
+        const classes = ['cell'];
+        const color = getCardColorCode(card);
+        if (color === 'R') classes.push('card-red');
+        else if (color === 'B') classes.push('card-blue');
+        const isSignal = typeof card?.isSignalCard === 'function'
+            ? card.isSignalCard()
+            : isSignalConfiguredCard(card);
+        if (isSignal) classes.push('signal-match');
+        if (tPositions.has(idx)) {
+            classes.push('tbox');
+            const col = idx % COLS;
+            const hasLeft = col > 0 && tPositions.has(idx - 1);
+            const hasRight = col < COLS - 1 && tPositions.has(idx + 1);
+            const hasTop = idx - COLS >= 0 && tPositions.has(idx - COLS);
+            const hasBottom = tPositions.has(idx + COLS);
+            if (!hasLeft) classes.push('tbox-left');
+            if (!hasRight) classes.push('tbox-right');
+            if (!hasTop) classes.push('tbox-top');
+            if (!hasBottom) classes.push('tbox-bottom');
+        }
+        const seg = segmentByIndex.get(idx);
+        if (seg === 'A') classes.push('segment-a');
+        else if (seg === 'B') classes.push('segment-b');
+        else if (seg === 'C') classes.push('segment-c');
+        return {
+            value: gridValueFromCard(card),
+            className: classes.join(' ')
+        };
+    });
+}
+
+function renderStatsGridPreview(rounds) {
+    if (typeof document === 'undefined') return;
+    const container = document.getElementById('statsGridPreview');
+    if (!container) return;
+    const deckCards = flattenDeckFromRounds(rounds);
+    if (!deckCards.length) {
+        container.innerHTML = '<div class="grid-placeholder">尚無牌靴資料</div>';
+        return;
+    }
+    const COLS = 15;
+    const ROWS = 28;
+    const MAX = COLS * ROWS;
+    const gridData = buildPreviewGrid(deckCards, rounds);
+    const padded = gridData.slice(0, MAX);
+    while (padded.length < MAX) {
+        padded.push({ className: 'cell', value: '' });
+    }
+    container.innerHTML = padded
+        .map(cell => `<div class="${cell.className}">${cell.value || ''}</div>`)
+        .join('');
+}
+
+// === 導出:把目前牌局匯出為 Excel ===
+async function exportRoundsAsExcel() {
+    if (!ensureRoundsReady('導出')) return;
+    if (typeof ExcelJS === 'undefined' || !ExcelJS.Workbook) {
+        log('ExcelJS 載入失敗,無法導出Excel。', 'error');
+        return;
+    }
+
+    const deckCards = flattenDeckFromRounds(currentRounds);
+    if (!deckCards.length) {
+        log('找不到牌靴資料,請先生成牌靴。', 'error');
+        return;
+    }
+
+    try {
+        const wb = new ExcelJS.Workbook();
+
+        // === 工作表1:預覽 ===
+        const ws1 = wb.addWorksheet('預覽');
+        ws1.properties.defaultRowHeight = 36;
+        ws1.pageSetup = {
+            paperSize: 9,
+            orientation: 'portrait',
+            fitToPage: false,
+            scale: 170,
+            horizontalCentered: true,
+            verticalCentered: true,
+            margins: { left: 0.1, right: 0.1, top: 0.12, bottom: 0.12, header: 0.1, footer: 0.1 }
+        };
+
+        const COLS = 15;
+        const ROWS = 28;
+        const GROUP = 5;
+        const SEP_COUNT = Math.floor((COLS - 1) / GROUP);
+        const TOTAL_COLS = COLS + SEP_COUNT;
+        const isSpacerCol = (col) => (col === 6 || col === 12);
+
+        for (let c = 1; c <= TOTAL_COLS; c++) {
+            ws1.getColumn(c).width = isSpacerCol(c) ? 1 : 4;
+        }
+
+        const borderThin = { style: 'thin', color: { argb: 'FF333333' } };
+        const borderBold = { style: 'medium', color: { argb: 'FFFF4D4F' } };
+        const gridData = buildPreviewGrid(deckCards, currentRounds);
+        const MAX = COLS * ROWS;
+        const padded = gridData.slice(0, MAX);
+        while (padded.length < MAX) padded.push({ className: 'cell', value: '' });
+
+        for (let r = 0; r < ROWS; r++) {
+            let sheetCol = 1;
+            for (let c = 0; c < COLS; c++) {
+                if (isSpacerCol(sheetCol)) sheetCol++;
+                const cellData = padded[r * COLS + c];
+                const wsCell = ws1.getCell(r + 1, sheetCol);
+                wsCell.value = cellData.value || '';
+                wsCell.alignment = { vertical: 'middle', horizontal: 'center' };
+                wsCell.font = { size: 22, bold: true, color: { argb: 'FF000000' } };
+                wsCell.border = { top: borderThin, left: borderThin, bottom: borderThin, right: borderThin };
+
+                const classes = cellData.className || '';
+                if (classes.includes('card-red')) {
+                    wsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+                } else if (classes.includes('card-blue')) {
+                    wsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+                }
+                if (classes.includes('signal-match')) {
+                    wsCell.font = { ...wsCell.font, color: { argb: 'FFFF4D4F' } };
+                }
+                if (classes.includes('tbox-left')) wsCell.border.left = borderBold;
+                if (classes.includes('tbox-right')) wsCell.border.right = borderBold;
+                if (classes.includes('tbox-top')) wsCell.border.top = borderBold;
+                if (classes.includes('tbox-bottom')) wsCell.border.bottom = borderBold;
+                sheetCol++;
+            }
+        }
+
+        // === 工作表2:原始數據 ===
+        const ws2 = wb.addWorksheet('原始數據');
+        const headers = ['局號', '段標', '色序', '卡片1', '卡片2', '卡片3', '卡片4', '卡片5', '卡片6', '結果', '訊號'];
+        ws2.addRow(headers);
+        const headerRow = ws2.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F3FF' } };
+
+        const sIndexes = new Set(compute_sidx_for_segment(currentRounds, 'A'));
+        const tIndexes = new Set();
+        currentRounds.forEach((round, idx) => {
+            if (round && round.isT) tIndexes.add(idx);
+        });
+
+        currentRounds.forEach((round, idx) => {
+            const cards = Array.isArray(round?.cards) ? round.cards : [];
+            const colorSeq = cards.map(getCardColorCode).join('');
+            const row = [
+                idx + 1,
+                round?.segment || '',
+                colorSeq
+            ];
+            for (let i = 0; i < 6; i++) {
+                row.push(cards[i] ? getCardLabel(cards[i]) : '');
+            }
+            row.push(round?.result || '');
+            let signalTag = '';
+            if (sIndexes.has(idx)) signalTag = 'S';
+            else if (tIndexes.has(idx)) signalTag = 'T';
+            row.push(signalTag);
+            ws2.addRow(row);
+        });
+
+        ws2.columns.forEach(column => {
+            column.width = 12;
+        });
+
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = `signal-analysis-${Date.now()}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        log('合併Excel檔案已導出成功!', 'success');
+    } catch (error) {
+        console.error('紅0 導出失敗:', error);
+        const message = error && error.message ? error.message : error;
+        log(`導出失敗:${message}`, 'error');
+    }
+}
+
+// === 預覽:開新視窗把牌局列表顯示出來 ===
+function previewRoundsInWindow() {
+    if (!ensureRoundsReady('預覽')) return;
+
+    const stats = buildStatsFromRounds();
+    const win = window.open('', '_blank', 'width=1080,height=720');
+    if (!win) {
+        log('瀏覽器阻擋了預覽視窗,請允許快顯視窗。', 'error');
+        return;
+    }
+
+    const rowsHtml = currentRounds.map((round, idx) => {
+        const cards = (round.cards || []).map(card => (card.short ? card.short() : `${card.rank || ''}${card.suit || ''}`)).join('、');
+        return `<tr>
+            <td>${idx + 1}</td>
+            <td>${round.segment || ''}</td>
+            <td>${round.result || ''}</td>
+            <td>${cards || '-'}</td>
+            <td>${round.sensitive ? '是' : '否'}</td>
+        </tr>`;
+    }).join('');
+
+    win.document.write(`<!doctype html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8">
+    <title>紅0 牌局預覽</title>
+    <style>
+        body{font-family:"Microsoft JhengHei",sans-serif;background:#1f2233;color:#f1f5ff;margin:0;padding:24px;}
+        h1{margin-top:0;font-size:22px;}
+        table{width:100%;border-collapse:collapse;margin-top:18px;background:#2a2f45;border-radius:12px;overflow:hidden;}
+        th,td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:center;font-size:14px;}
+        th{background:rgba(255,255,255,0.12);}
+        tr:last-child td{border-bottom:none;}
+        .summary{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;}
+        .summary div{background:rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;font-size:13px;}
+    </style>
+</head>
+<body>
+    <h1>紅0 牌局預覽(共 ${currentRounds.length} 局)</h1>
+    <div class="summary">
+        <div>莊家局數:${stats.bankerCount}</div>
+        <div>閒家局數:${stats.playerCount}</div>
+        <div>和局數:${stats.tieCount}</div>
+        <div>S 局訊號牌:${stats.sSignalCards}</div>
+        <div>非 S 局訊號牌:${stats.nonSSignalCards}</div>
+        <div>T 局訊號牌:${stats.tSignalCards}</div>
+    </div>
+    <table>
+        <thead><tr><th>局號</th><th>段位</th><th>結果</th><th>卡牌</th><th>敏感局</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+    </table>
+</body>
+</html>`);
+    win.document.close();
+}
+
+// === 語音:使用 speechSynthesis 朗讀牌靴摘要 ===
+function speakRoundsSummary() {
+    if (!ensureRoundsReady('語音')) return;
+    if (!('speechSynthesis' in window)) {
+        log('此瀏覽器不支援語音朗讀。', 'error');
+        return;
+    }
+
+    const stats = buildStatsFromRounds();
+    const deck = computeDeckSummary(currentRounds) || { total_cards: 0 };
+    const text = `目前紅零牌靴共有 ${stats.totalRounds} 局,莊家 ${stats.bankerCount} 局,閒家 ${stats.playerCount} 局,和局 ${stats.tieCount} 局。`
+        + ` S 局訊號牌 ${stats.sSignalCards} 張,非 S 局訊號牌 ${stats.nonSSignalCards} 張,T 局訊號牌 ${stats.tSignalCards} 張。`
+        + ` 統計到的牌靴總張數為 ${deck.total_cards} 張。`;
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'zh-TW';
+    utter.rate = 1.0;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+    log('開始語音朗讀。', 'info');
+}
+
+// === 計算工具:顯示懸浮計算器 ===
+function showCalcTool() {
+    ensureFloatingWidget();
+    const widget = document.getElementById('floatingAssistant');
+    if (widget) widget.style.display = 'block';
+}
+function ensureFloatingWidget() {
+    if (typeof document === 'undefined') return false;
+    if (!document.getElementById('floatingAssistant')) {
+        const widgetHTML = `
+        <div class="floating-widget" id="floatingAssistant">
+        <div class="widget-content">
+            <div class="widget-actions">
+                <button id="closeWidgetBtn" class="widget-action widget-close" type="button">關閉</button>
+                <button id="sim_reset-btn" class="widget-action widget-reset" type="button">清空</button>
+            </div>
+            <div class="card-inputs">
+                <input type="number" inputmode="numeric" class="card-input" id="sim_p1" min="0" max="9" placeholder="閒1">
+                <input type="number" inputmode="numeric" class="card-input" id="sim_b1" min="0" max="9" placeholder="莊1">
+                <input type="number" inputmode="numeric" class="card-input" id="sim_p2" min="0" max="9" placeholder="閒2">
+                <input type="number" inputmode="numeric" class="card-input" id="sim_b2" min="0" max="9" placeholder="莊2">
+                <input type="number" inputmode="numeric" class="card-input disabled" id="sim_p3" min="0" max="9" placeholder="閒3">
+                <input type="number" inputmode="numeric" class="card-input disabled" id="sim_b3" min="0" max="9" placeholder="莊3">
+            </div>
+            <div class="results">
+                <div class="result-strip">
+                    <span class="result-value metric-value result-player" id="sim_normal-p-points">---</span>
+                    <span class="result-value metric-value result-banker" id="sim_normal-b-points">---</span>
+                    <span class="result-value metric-value result-outcome" id="sim_normal-tie-result">---</span>
+                </div>
+                <div class="result-strip">
+                    <span class="result-value metric-value result-player" id="sim_swapped-p-points">---</span>
+                    <span class="result-value metric-value result-banker" id="sim_swapped-b-points">---</span>
+                    <span class="result-value metric-value result-outcome" id="sim_swapped-tie-result">---</span>
+                </div>
+            </div>
+        </div>
+    </div>`;
+        document.body.insertAdjacentHTML('beforeend', widgetHTML);
+        bindSimulatorLogic();
+        const widget = document.getElementById('floatingAssistant');
+        const closeBtn = document.getElementById('closeWidgetBtn');
+        if (closeBtn) closeBtn.onclick = () => widget.style.display = 'none';
+        let isDragging = false, offsetX = 0, offsetY = 0;
+        const startDrag = (e) => {
+            if (e.target.closest('.card-inputs') || e.target.closest('.result-strip') || e.target.closest('.widget-close') || e.target.id === 'sim_reset-btn') return;
+            isDragging = true;
+            offsetX = e.clientX - widget.offsetLeft;
+            offsetY = e.clientY - widget.offsetTop;
+            e.preventDefault();
+        };
+        const onDrag = (e) => {
+            if (!isDragging) return;
+            widget.style.left = `${e.clientX - offsetX}px`;
+            widget.style.top = `${e.clientY - offsetY}px`;
+        };
+        const stopDrag = () => { isDragging = false; };
+        widget.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+    }
+    return true;
+}
+
+function bindSimulatorLogic() {
+    const inputs = {
+        p1: document.getElementById('sim_p1'),
+        b1: document.getElementById('sim_b1'),
+        p2: document.getElementById('sim_p2'),
+        b2: document.getElementById('sim_b2'),
+        p3: document.getElementById('sim_p3'),
+        b3: document.getElementById('sim_b3')
+    };
+    const resetButton = document.getElementById('sim_reset-btn');
+    const normalPPointsEl = document.getElementById('sim_normal-p-points');
+    const normalBPointsEl = document.getElementById('sim_normal-b-points');
+    const normalTieResultEl = document.getElementById('sim_normal-tie-result');
+    const swappedPPointsEl = document.getElementById('sim_swapped-p-points');
+    const swappedBPointsEl = document.getElementById('sim_swapped-b-points');
+    const swappedTieResultEl = document.getElementById('sim_swapped-tie-result');
+
+    function simulate(p1, b1, p2, b2, p3, b3) {
+        let p_tot = (p1 + p2) % 10;
+        let b_tot = (b1 + b2) % 10;
+        const natural = (p_tot >= 8 || b_tot >= 8);
+        let p3_val = null;
+        let needs_p3 = false;
+        let needs_b3 = false;
+        let final_p_tot = p_tot;
+        let final_b_tot = b_tot;
+
+        if (!natural) {
+            if (p_tot <= 5) {
+                needs_p3 = true;
+                if (p3 !== null) {
+                    p3_val = p3;
+                    final_p_tot = (p_tot + p3) % 10;
+                }
+            }
+            if (p3_val === null) {
+                if (b_tot <= 5) {
+                    needs_b3 = true;
+                    if (b3 !== null) final_b_tot = (b_tot + b3) % 10;
+                }
+            } else {
+                const pt = p3_val;
+                if (
+                    b_tot <= 2 ||
+                    (b_tot === 3 && pt !== 8) ||
+                    (b_tot === 4 && [2, 3, 4, 5, 6, 7].includes(pt)) ||
+                    (b_tot === 5 && [4, 5, 6, 7].includes(pt)) ||
+                    (b_tot === 6 && [6, 7].includes(pt))
+                ) {
+                    needs_b3 = true;
+                }
+                if (needs_b3 && b3 !== null) final_b_tot = (b_tot + b3) % 10;
+            }
+        }
+
+        const result = (final_p_tot > final_b_tot) ? '閒' : ((final_b_tot > final_p_tot) ? '莊' : '和');
+        return { result, p_tot: final_p_tot, b_tot: final_b_tot, needs_p3, needs_b3 };
+    }
+
+    function updateUI() {
+        const values = {};
+        let allFourFilled = true;
+        Object.keys(inputs).forEach((key) => {
+            const parsed = parseInt(inputs[key].value, 10);
+            values[key] = Number.isNaN(parsed) ? null : parsed;
+            if (['p1', 'b1', 'p2', 'b2'].includes(key) && values[key] === null) {
+                allFourFilled = false;
+            }
+        });
+
+        inputs.p3.classList.add('disabled');
+        inputs.p3.classList.remove('highlight');
+        inputs.b3.classList.add('disabled');
+        inputs.b3.classList.remove('highlight');
+
+        const resetOutput = (el, extraClass) => {
+            el.textContent = '---';
+            el.className = `metric-value result-value ${extraClass}`.trim();
+        };
+
+        resetOutput(normalPPointsEl, 'result-player');
+        resetOutput(normalBPointsEl, 'result-banker');
+        resetOutput(normalTieResultEl, 'result-outcome');
+        resetOutput(swappedPPointsEl, 'result-player');
+        resetOutput(swappedBPointsEl, 'result-banker');
+        resetOutput(swappedTieResultEl, 'result-outcome');
+
+        if (!allFourFilled) return;
+
+        const { p1, b1, p2, b2, p3, b3 } = values;
+        const normal = simulate(p1, b1, p2, b2, p3, b3);
+        const swapped = simulate(b1, p1, b2, p2, p3, b3);
+
+        const setOutput = (el, value, extraClass) => {
+            el.textContent = value;
+            el.className = `metric-value result-value ${extraClass}`.trim();
+        };
+
+        setOutput(normalPPointsEl, normal.p_tot, 'result-player');
+        setOutput(normalBPointsEl, normal.b_tot, 'result-banker');
+        setOutput(normalTieResultEl, normal.result, 'result-outcome');
+
+        setOutput(swappedPPointsEl, swapped.p_tot, 'result-player');
+        setOutput(swappedBPointsEl, swapped.b_tot, 'result-banker');
+        setOutput(swappedTieResultEl, swapped.result, 'result-outcome');
+
+        if (normal.needs_p3) {
+            inputs.p3.classList.remove('disabled');
+            inputs.p3.classList.add('highlight');
+        }
+        if (normal.needs_b3) {
+            inputs.b3.classList.remove('disabled');
+            inputs.b3.classList.add('highlight');
+        }
+    }
+
+    Object.values(inputs).forEach(input => {
+        if (!input) return;
+        input.addEventListener('input', updateUI);
+    });
+
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            Object.values(inputs).forEach(input => {
+                if (input) input.value = '';
+            });
+            updateUI();
+        });
+    }
+
+    updateUI();
+}
+
+function runAutoColorSwapFromUI() {
+    if (!currentRounds || currentRounds.length === 0) {
+        log('請先生成牌靴', 'error');
+        return;
+    }
+    log('開始執行卡色邏輯...', 'info');
+    try {
+        currentRounds = runAutoColorSwap_Signal(currentRounds);
+        refreshAnalysisAndRender();
+        resetEditState();
+        log('卡色邏輯執行完成', 'success');
+    } catch (err) {
+        log(`卡色失敗: ${err && err.message ? err.message : err}`, 'error');
+    }
+}
+
+function getSuitButtons() {
+    return Array.from(document.querySelectorAll('.suit-button'));
+}
+
+// 快速選擇函數
+function selectAllSuits() {
+    getSuitButtons().forEach(btn => btn.classList.add('selected'));
+    updateSignalCardCount();
+}
+
+function clearAllSuits() {
+    getSuitButtons().forEach(btn => btn.classList.remove('selected'));
+    updateSignalCardCount();
+}
+
+function selectRedSuits() {
+    const buttons = getSuitButtons();
+    buttons.forEach(btn => {
+        const value = btn.dataset ? btn.dataset.value : null;
+        const isRed = value === '♥' || value === '♦';
+        if (isRed) btn.classList.add('selected');
+        else btn.classList.remove('selected');
+    });
+    updateSignalCardCount();
+}
+
+function selectAllRanks() {
+    document.querySelectorAll('.rank-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSignalCardCount();
+}
+
+function clearAllRanks() {
+    document.querySelectorAll('.rank-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSignalCardCount();
+}
+
+function selectZeroRanks() {
+    clearAllRanks();
+    ['10', 'J', 'Q', 'K'].forEach(rank => {
+        document.querySelector(`input[value="${rank}"]`).checked = true;
+    });
+    updateSignalCardCount();
+}
+
+// 常用組合函數
+function selectHeartAll() {
+    clearAllSuits();
+    clearAllRanks();
+    getSuitButtons().forEach(btn => {
+        if (btn.dataset && btn.dataset.value === '♥') {
+            btn.classList.add('selected');
+        }
+    });
+    // 選擇所有數字
+    document.querySelectorAll('.rank-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSignalCardCount();
+}
+
+
+function syncUiFromSignalConfig() {
+    if (typeof document === 'undefined') return;
+    const suits = Array.isArray(SIGNAL_CONFIG.suits) ? SIGNAL_CONFIG.suits : [];
+    const ranks = Array.isArray(SIGNAL_CONFIG.ranks) ? SIGNAL_CONFIG.ranks : [];
+    const suitSet = new Set(suits);
+    const rankSet = new Set(ranks);
+
+    const suitButtons = document.querySelectorAll('.suit-button');
+    suitButtons.forEach(btn => {
+        const value = btn.dataset ? btn.dataset.value : btn.value;
+        if (value && suitSet.has(value)) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    document.querySelectorAll('.rank-checkbox').forEach(cb => {
+        cb.checked = rankSet.has(cb.value);
+    });
+
+    if (typeof updateSignalCardCount === 'function') {
+        updateSignalCardCount();
+    }
+}
+
+// 更新訊號牌張數顯示
+function updateSignalCardCount() {
+    // 收集花色選擇
+    // 先讀圓形按鈕
+let suits = Array.from(document.querySelectorAll('.suit-button.selected'))
+  .map(btn => btn.dataset.value);
+
+// 若沒有圓形按鈕(或沒選),才退回舊的 checkbox
+if (suits.length === 0) {
+  suits = Array.from(document.querySelectorAll('.suit-checkbox:checked'))
+    .map(cb => cb.value);
+}
+
+    
+    // 收集數字選擇
+    const ranks = [];
+    document.querySelectorAll('.rank-checkbox:checked').forEach(cb => {
+        ranks.push(cb.value);
+    });
+    
+    // 計算總張數 (花色數量 × 數字數量 × 8副牌)
+    const totalCards = suits.length * ranks.length * 8;
+    
+    // 更新顯示
+    const countElement = document.getElementById('signalCardCount');
+    if (countElement) {
+        countElement.textContent = totalCards;
+        // 根據張數多少改變顏色
+        if (totalCards === 0) {
+            countElement.style.color = '#dc3545'; // 紅色
+        } else if (totalCards <= 64) {
+            countElement.style.color = '#28a745'; // 綠色
+        } else if (totalCards <= 128) {
+            countElement.style.color = '#ffc107'; // 黃色
+        } else {
+            countElement.style.color = '#fd7e14'; // 橘色
+        }
+    }
+}
+
+// 應用訊號設定
+function applySignalConfig() {
+    // 先讀圓形按鈕
+let suits = Array.from(document.querySelectorAll('.suit-button.selected'))
+  .map(btn => btn.dataset.value);
+
+// 若沒有圓形按鈕(或沒選),才退回舊的 checkbox
+if (suits.length === 0) {
+  suits = Array.from(document.querySelectorAll('.suit-checkbox:checked'))
+    .map(cb => cb.value);
+}
+
+    
+    // 收集數字選擇
+    const ranks = [];
+    document.querySelectorAll('.rank-checkbox:checked').forEach(cb => {
+        ranks.push(cb.value);
+    });
+    
+    const updated = persistSignalConfig({ suits, ranks });
+    const expectedTotal = updated.suits.length * updated.ranks.length * 8;
+    
+    log(`訊號設定已更新:花色[${updated.suits.join(',')}] 數字[${updated.ranks.join(',')}] (預計訊號牌總數:${expectedTotal}張)`, 'success');
+}
+
+function updateSignalConfig(newConfig) {
+    const hasExternalConfig = newConfig && typeof newConfig === 'object' &&
+        (Array.isArray(newConfig.suits) || Array.isArray(newConfig.ranks));
+
+    if (hasExternalConfig) {
+        const suits = Array.isArray(newConfig.suits) ? newConfig.suits : SIGNAL_CONFIG.suits;
+        const ranks = Array.isArray(newConfig.ranks) ? newConfig.ranks : SIGNAL_CONFIG.ranks;
+        persistSignalConfig({ suits, ranks });
+        syncUiFromSignalConfig();
+        return;
+    }
+
+    applySignalConfig();
+}
+
+function generateShoe_Signal(...args) {
+    return generateShoe(...args);
+}
+// 洗牌函數
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+// 建立8副牌
+function build_shuffled_deck() {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const baseR = [];
+    const baseB = [];
+    
+    for (const s of suits) {
+        for (const r of ranks) {
+            baseR.push(new Card(r, s, -1));
+            baseB.push(new Card(r, s, -1));
+        }
+    }
+    
+    let deck = [];
+    for (let i = 0; i < 4; i++) {
+        deck.push(...baseR.map(c => {
+            const card = new Card(c.rank, c.suit, -1);
+            card.back_color = 'R';
+            return card;
+        }));
+        deck.push(...baseB.map(c => {
+            const card = new Card(c.rank, c.suit, -1);
+            card.back_color = 'B';
+            return card;
+        }));
+    }
+    
+    shuffle(deck);
+    deck.forEach((c, i) => c.pos = i);
+    return deck;
+}
+
+// 掃描所有敏感局
+function scan_all_sensitive_rounds(sim) {
+    const out = [];
+    const last = sim.deck.length - 1;
+    
+    for (let i = 0; i < last; i++) {
+        const r = sim.simulate_round(i);
+        if (r && r.sensitive) {
+            out.push(r);
+        }
+    }
+    
+    return out;
+}
+
+// 計算S局索引
+function compute_sidx_for_segment(rounds, segment = 'A') {
+    const S = [];
+    for (let i = 0; i < rounds.length - 1; i++) {
+        if (rounds[i].segment === segment && rounds[i + 1].result === '莊') {
+            S.push(i);
+        }
+    }
+    // 額外檢查最後一局是否能成為S局(下一局是第一局)
+    if (rounds.length > 1 && rounds[rounds.length - 1].segment === segment && rounds[0].result === '莊') {
+        S.push(rounds.length - 1);
+    }
+    return S;
+}
+
+
+// T局訊號處理:兩對局→下一局和局
+function applyTSignalLogic(rounds) {
+    log('開始T局訊號處理:兩對局 → 下一局和局', 'info');
+
+    // 先清掉舊的 T 標記,避免上一輪留下來
+    rounds.forEach(round => {
+        if (round.isT) {
+            round.isT = false;
+        }
+    });
+    
+    // 1. 統計兩對局和和局
+    const twoPairsIndices = [];
+    const tieIndices = [];
+    
+    rounds.forEach((round, index) => {
+        if (hasTwoPairs(round)) {
+            twoPairsIndices.push(index);
+        }
+        if (round.result === '和') {
+            tieIndices.push(index);
+        }
+    });
+    
+    log(`兩對局數:${twoPairsIndices.length},和局數:${tieIndices.length}`, 'info');
+    
+    // 2. 數量匹配處理
+    const twoPairsCount = twoPairsIndices.length;
+    const tieCount = tieIndices.length;
+    
+    if (twoPairsCount !== tieCount) {
+        throw new Error('T局與和局數量不匹配');
+    }
+
+    const cRounds = rounds.filter(r => r.segment === 'C');
+    const nonCRounds = rounds.filter(r => r.segment !== 'C');
+    rounds = [...nonCRounds, ...cRounds];
+    return adjustTSignalPositions(rounds, twoPairsIndices, tieIndices);
+}
+
+// 調整T局訊號位置 (已更新為"往下找不到再從頭找"的規則)
+function adjustTSignalPositions(rounds, twoPairsIndices, tieIndices) {
+    
+    const availableTies = new Set(tieIndices);
+
+    for (let i = 0; i < twoPairsIndices.length; i++) {
+        const twoPairsIndex = twoPairsIndices[i];
+        const nextIndex = (twoPairsIndex + 1) % rounds.length;
+
+        if (rounds[nextIndex].result === '和') {
+            if (availableTies.has(nextIndex)) {
+                availableTies.delete(nextIndex);
+            }
+            rounds[twoPairsIndex].isT = true; // 標記 isT
+            continue;
+        }
+
+        // --- 開始尋找可交換的和局 ---
+        let closestTieIndex = -1;
+
+        // 1. 優先從當前位置之後,往下尋找
+        for (const tieIdx of availableTies) {
+            if (tieIdx > twoPairsIndex) {
+                closestTieIndex = tieIdx;
+                break; // 找到第一個就停止
+            }
+        }
+
+        // 2. 如果往下找不到,再從第一局開始往下尋找
+        if (closestTieIndex === -1) {
+            for (const tieIdx of availableTies) {
+                // 這裡不需要 tieIdx > twoPairsIndex 的判斷
+                closestTieIndex = tieIdx;
+                break; // 找到第一個就停止
+            }
+        }
+
+        // 如果找到了可用的和局
+        if (closestTieIndex !== -1) {
+            swapRounds(rounds, nextIndex, closestTieIndex);
+            rounds[twoPairsIndex].isT = true; // 標記 isT
+            availableTies.delete(closestTieIndex);
+        } else {
+            // 只有在遍歷了兩次都找不到任何一個可用的和局時,才會報錯
+            log(`[警告] 牌靴中已無任何可用的和局來滿足第 ${twoPairsIndex + 1} 局。`, 'error');
+        }
+    }
+    
+    // 重新掃描一次實際的兩對局位置後標記 isT
+    rounds.forEach(r => {
+        if (r) r.isT = false;
+    });
+    rounds.forEach((round, idx) => {
+        if (!round) return;
+        if (!hasTwoPairs(round)) {
+            round.isT = false;
+            return;
+        }
+        const nextIdx = (idx + 1) % rounds.length;
+        const nextRound = rounds[nextIdx];
+        round.isT = Boolean(nextRound && ['和', 'Tie', 'T'].includes(String(nextRound.result)));
+    });
+    
+    return rounds;
+}
+
+
+
+// 交換兩局的位置 (已加入詳細日誌記錄)
+function swapRounds(rounds, index1, index2) {
+    // 確保索引有效且不相同
+    if (index1 !== index2 && index1 < rounds.length && index2 < rounds.length) {
+        
+        // 獲取交換前的兩局牌局物件
+        const round1_before = rounds[index1];
+        const round2_before = rounds[index2];
+
+        // 如果沒有牌,則顯示 '無牌'
+        const cards1_str = (round1_before.cards && round1_before.cards.length > 0)
+            ? round1_before.cards.map(c => c.short()).join(' ') 
+            : '無牌';
+            
+        const cards2_str = (round2_before.cards && round2_before.cards.length > 0)
+            ? round2_before.cards.map(c => c.short()).join(' ') 
+            : '無牌';
+
+        // 產生詳細的日誌訊息
+        log(
+            `[交換] 第 ${index1 + 1} 局 {${cards1_str}} ↔️ 第 ${index2 + 1} 局 {${cards2_str}}`, 
+            'warn'
+        );
+
+        // 執行交換
+        [rounds[index1], rounds[index2]] = [rounds[index2], rounds[index1]];
+    }
+}
+
+
+// 完整複製原系統的ABC段排列邏輯
+function pack_all_sensitive_and_segment(deck) {
+    log(`🔍 開始處理：總共 ${deck.length} 張牌`, 'info');
+    
+    const sim = new Simulator(deck);
+    // 掃描所有敏感局
+    const scanSensitive = (typeof scan_all_sensitive_rounds === 'function')
+        ? scan_all_sensitive_rounds
+        : (window.SignalLogic && window.SignalLogic.helpers && window.SignalLogic.helpers.scan_all_sensitive_rounds);
+    if (typeof scanSensitive !== 'function') {
+        throw new Error('scan_all_sensitive_rounds 未定義');
+    }
+    const all_sensitive = scanSensitive(sim);
+    // 記錄已用過的牌位置
+    const used_pos = new Set();
+    // 儲存 A 段敏感局
+    const a_rounds = [];
+    
+    // 先把所有敏感局加入 A 段
+    for (const r of all_sensitive) {
+        // 如果這局有用過的牌就跳過
+        if (r.cards.some(c => used_pos.has(c.pos))) continue;
+        r.segment = 'A';
+        a_rounds.push(r);
+        r.cards.forEach(c => used_pos.add(c.pos));
+    }
+    
+    // 持續多重洗牌挑選敏感局
+    const MAX_MULTI_PASS_ATTEMPTS = 200;
+    const MULTI_PASS_MIN_CARDS = 6;
+    let multi_pass_attempts = 0;
+    
+    const harvestAdditionalSensitiveRounds = (label = '多重洗牌') => {
+        let attempts = 0;
+        let added = 0;
+        while (attempts < MAX_MULTI_PASS_ATTEMPTS) {
+        const remaining = deck.filter(c => !used_pos.has(c.pos));
+        if (remaining.length <= MULTI_PASS_MIN_CARDS) {
+            // 剩餘牌數 ≤ 6:只要能湊出敏感局,就把它當成一個正常回合附加進結果
+            if (remaining.length >= 4 && canFormSensitiveRound(remaining)) {
+                const tempCards = remaining.map((c, i) => c.clone(i));
+                const tempSim = new Simulator(tempCards);
+                const last = tempSim.simulate_round(0);
+                if (last && last.sensitive) {
+                    // 將排列結果映射回原始卡牌(保持正確的 pos / 引用)
+                    const orderedOriginalCards = last.cards.map(cloneCard => {
+                        const original = remaining[cloneCard.pos];
+                        return original;
+                    });
+                    const startPos = orderedOriginalCards.length ? orderedOriginalCards[0].pos : 0;
+                    const finalRound = makeRoundInfo(startPos, orderedOriginalCards, last.result, true);
+                    finalRound.segment = 'A';
+                    a_rounds.push(finalRound);
+                    orderedOriginalCards.forEach(card => used_pos.add(card.pos));
+                    break;
+                }
+            }
+            return null;
+        }
+        
+        const cands = multi_pass_candidates_from_cards_simple(remaining);
+        const picked = Array.isArray(cands)
+            ? cands.find(r => Array.isArray(r.cards) && r.cards.length > 0 && !r.cards.some(c => used_pos.has(c.pos)))
+            : cands;
+            
+        // 檢查挑出來的敏感局是否合法
+        if (!picked || !Array.isArray(picked.cards) || picked.cards.length === 0) {
+             multi_pass_attempts++;
+            if (multi_pass_attempts >= MAX_MULTI_PASS_ATTEMPTS) break;
+            continue;
+        }
+        if (picked.cards.some(c => used_pos.has(c.pos))) break;
+        
+        picked.segment = 'A';
+        a_rounds.push(picked);
+        picked.cards.forEach(c => used_pos.add(c.pos));
+            added++;
+    }
+        if (added > 0) {
+            log(`🔍 ${label}：加入 ${added} 局，已使用 ${used_pos.size} 張牌`, 'info');
+        }
+        return added;
+    };
+    
+    harvestAdditionalSensitiveRounds('多重洗牌');
+    
+    a_rounds.sort((a, b) => a.start_index - b.start_index);
+    
+    const balanceExcessTieRounds = () => {
+    log('🔍 開始和局平衡處理', 'info');
+    
+    // ===== 階段 1：先拆「兩對+和局」=====
+    let twoPairsTieRemoved = 0;
+    for (let i = a_rounds.length - 1; i >= 0; i--) {
+        const round = a_rounds[i];
+        if (hasTwoPairs(round) && round.result === '和') {
+            const [spliced] = a_rounds.splice(i, 1);
+            spliced.cards.forEach(card => used_pos.delete(card.pos));
+            twoPairsTieRemoved++;
+        }
+    }
+    
+    if (twoPairsTieRemoved > 0) {
+        log(`🔍 拆掉 ${twoPairsTieRemoved} 局「兩對+和局」`, 'warn');
+    }
+    
+    // ===== 階段 2：重新統計，拆多餘的純和局 =====
+    const twoPairsCount = a_rounds.filter(hasTwoPairs).length;
+    const tieCount = a_rounds.filter(round => round.result === '和').length;
+    
+    log(`🔍 重新統計：兩對局 ${twoPairsCount}，和局 ${tieCount}`, 'info');
+    
+    if (tieCount <= twoPairsCount) {
+        log('🔍 和局數量不超過兩對，無需額外調整', 'info');
+        harvestAdditionalSensitiveRounds('和局平衡重洗');
+        return;
+    }
+    
+    const excess = tieCount - twoPairsCount;
+    log(`🔍 和局 ${tieCount} > 兩對 ${twoPairsCount}，須再拆出 ${excess} 局和局`, 'warn');
+    
+    let removed = 0;
+    for (let i = a_rounds.length - 1; i >= 0 && removed < excess; i--) {
+        const round = a_rounds[i];
+        if (round.result === '和') {
+            const [spliced] = a_rounds.splice(i, 1);
+            spliced.cards.forEach(card => used_pos.delete(card.pos));
+            removed++;
+        }
+    }
+    
+    log(`🔍 總共拆掉：兩對+和局 ${twoPairsTieRemoved} 局，純和局 ${removed} 局`, 'info');
+    
+    harvestAdditionalSensitiveRounds('和局平衡重洗');
+};
+      
+   
+    balanceExcessTieRounds();
+    
+    const tail_cards = deck.filter(c => !used_pos.has(c.pos));
+    log(`🔍 準備建立殘牌：剩餘 ${tail_cards.length} 張牌`, 'info');
+    log(`🔍 驗證：${used_pos.size} + ${tail_cards.length} = ${used_pos.size + tail_cards.length} (應為 416)`, 'info');
+    
+    if (used_pos.size + tail_cards.length !== 416) {
+        log(`❌ 錯誤：A 段處理後就少牌了！`, 'error');
+        const all_pos_in_deck = new Set(deck.map(c => c.pos));
+        const accounted_pos = new Set([...used_pos, ...tail_cards.map(c => c.pos)]);
+        const missing_pos = [...all_pos_in_deck].filter(pos => !accounted_pos.has(pos));
+        log(`❌ 消失的 pos: ${missing_pos.join(', ')}`, 'error');
+    }
+    
+    let final_rounds = [...a_rounds];
+    let c_cards = [];
+    if (tail_cards.length > 0) {
+        c_cards = tail_cards;
+        const c_round = makeRoundInfo(Math.min(...c_cards.map(c => c.pos)), c_cards, '殘牌', false);
+        c_round.segment = 'C';
+        final_rounds.push(c_round);
+    }
+
+    // 於生成流程內就完成 T 局訊號處理，避免後續再跑一次
+    if (typeof applyTSignalLogic === 'function') {
+        try {
+            const processed = applyTSignalLogic(final_rounds.slice());
+            if (Array.isArray(processed) && processed.length > 0) {
+                final_rounds = processed;
+                log('🔍 生成流程內已完成 T 局訊號處理。', 'info');
+            } else {
+                log('⚠️ 生成流程內的 T 局處理未回傳有效結果，沿用原順序。', 'warn');
+            }
+        } catch (error) {
+            log(`⚠️ 生成流程內處理 T 局失敗: ${error && error.message ? error.message : error}`, 'error');
+            throw error;
+        }
+    } else {
+        log('⚠️ 找不到 applyTSignalLogic，無法在生成階段處理 T 局。', 'warn');
+    }
+
+    // 取得所有卡牌
+    const final_card_deck = final_rounds.flatMap(r => r.cards);
+    log(`A段: ${a_rounds.length}局, C段: ${c_cards.length > 0 ? 1 : 0}局`, 'info');
+    
+    return {
+        a_rounds,
+        b_rounds: [],
+        c_cards,
+        final_rounds,
+        final_card_deck
+    };
+}
+
+// 檢查剩餘牌是否能組成敏感局(排列組合測試)
+function canFormSensitiveRound(cards) {
+    // 至少需要4張牌才能進行一局百家樂
+    if (!cards || cards.length < 4) return false;
+    
+    // 生成所有可能的排列(例如6張牌 = 6! = 720種排列)
+    const permutations = generatePermutations(cards);
+    
+    // 逐一測試每種排列是否能構成敏感局
+    for (const perm of permutations) {
+        // 為每個排列建立臨時模擬器
+        const tempCards = perm.map((c, i) => c.clone(i));
+        const sim = new Simulator(tempCards);
+        
+        // 測試第一局是否為敏感局
+        const result = sim.simulate_round(0);
+        if (result && result.sensitive) {
+            return true; // 找到可行的排列,表示這些牌可以組成敏感局
+        }
+    }
+    
+    return false; // 所有排列都無法構成敏感局
+}
+
+// 生成陣列的所有排列(遞迴方式)
+function generatePermutations(arr) {
+    // 基礎情況:1張或0張牌直接返回
+    if (arr.length <= 1) return [arr];
+    
+    const result = [];
+    // 取出每一張牌作為第一張
+    for (let i = 0; i < arr.length; i++) {
+        const current = arr[i];
+        // 剩餘的牌
+        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+        // 對剩餘牌進行排列
+        const permutations = generatePermutations(remaining);
+        
+        // 將當前牌與剩餘牌的所有排列組合
+        for (const perm of permutations) {
+            result.push([current, ...perm]);
+        }
+    }
+    
+    return result;
+}
+
+// 完整複製多重洗牌邏輯
+function multi_pass_candidates_from_cards_simple(card_pool) {
+    if (card_pool.length < 2) return []; // 改為至少需要2張牌
+    
+    // 複製一份牌池並隨機洗牌    
+    let shuffled = [...card_pool];
+    shuffle(shuffled);   
+    
+    const temp_cards = shuffled.map((c, i) => c.clone(i));
+    const idx2orig = new Map(shuffled.map((c, i) => [i, c]));
+    const temp_sim = new Simulator(temp_cards);
+    
+    const out = []; 
+    const used_idx = new Set();
+    let i = 0;
+    
+    while (i < temp_cards.length - 1) { // 改為至少保留1張牌      
+        if (used_idx.has(i)) { i++; continue; }
+        
+        const r = temp_sim.simulate_round(i); 
+        if (!r) { i++; continue; }
+        
+        const temp_indices = r.cards.map(c => c.pos);
+        if (temp_indices.some(ti => used_idx.has(ti))) { i++; continue; }
+        
+        if (!r.sensitive) { i += r.cards.length; continue; } 
+        
+        // 準備把臨時卡牌對照回原始卡牌     
+        const ordered = [];
+        const seen = new Set();
+        let valid = true;
+        
+        for (const ti of temp_indices) {
+            const oc = idx2orig.get(ti);
+            if (seen.has(oc.pos)) { valid = false; break; }
+            ordered.push(oc); 
+            seen.add(oc.pos);
+        }
+        
+        if (!valid) { i++; continue; }
+        
+        const start_pos = ordered[0].pos;
+        out.push({
+            start_index: start_pos,
+            cards: ordered,
+            result: r.result,
+            sensitive: true
+        });
+        
+        temp_indices.forEach(ti => used_idx.add(ti));
+        i = Math.max(...temp_indices) + 1;
+    }
+   
+    return out;
+}
+
+
+
+const exported = {
+    generateShoe_Signal: generateShoe_Signal,
+    runAutoColorSwap_Signal: runAutoColorSwap_Signal,
+    analyzeRounds: analyze_external_rounds,
+    updateSignalConfig: updateSignalConfig,
+    syncSignalUiFromConfig: syncUiFromSignalConfig,
+    log: log,
+    helpers: {
+        hasTwoPairs: hasTwoPairs,
+        swapFirstTwoCards: swapFirstTwoCards,
+        scan_all_sensitive_rounds: scan_all_sensitive_rounds
+    },
+    Simulator: Simulator,
+    ui: {
+        generateShoe: generateShoe,
+        analyzeSignals: analyzeSignals,
+        clearAll: clearAll,
+        applySignalConfig: applySignalConfig,
+        updateSignalCardCount: updateSignalCardCount,
+        selectAllSuits: selectAllSuits,
+        clearAllSuits: clearAllSuits,
+        selectRedSuits: selectRedSuits,
+        selectAllRanks: selectAllRanks,
+        clearAllRanks: clearAllRanks,
+        selectZeroRanks: selectZeroRanks,
+        selectHeartAll: selectHeartAll,
+        runAutoColorSwap: runAutoColorSwapFromUI,
+        syncUiFromSignalConfig: syncUiFromSignalConfig
+    }
+};
+
+if (typeof window !== 'undefined') {
+    if (!window.Simulator) {
+        window.Simulator = Simulator;
+    }
+    if (!window.SignalSystem) {
+        window.SignalSystem = {
+            analyze(rounds, _Simulator, config, statusCallback) {
+                return analyze_external_rounds(rounds, _Simulator, config || {}, statusCallback);
+            }
+        };
+    }
+    const ui = exported.ui;
+    window.generateShoe = ui.generateShoe;
+    window.analyzeSignals = ui.analyzeSignals;
+    window.clearAll = ui.clearAll;
+    window.applySignalConfig = ui.applySignalConfig;
+    window.updateSignalCardCount = ui.updateSignalCardCount;
+    window.selectAllSuits = ui.selectAllSuits;
+    window.clearAllSuits = ui.clearAllSuits;
+    window.selectRedSuits = ui.selectRedSuits;
+    window.selectAllRanks = ui.selectAllRanks;
+    window.clearAllRanks = ui.clearAllRanks;
+    window.selectZeroRanks = ui.selectZeroRanks;
+    window.selectHeartAll = ui.selectHeartAll;
+    window.runAutoColorSwap = ui.runAutoColorSwap;
+    window.syncSignalUiFromConfig = ui.syncUiFromSignalConfig;
+    if (typeof window.log !== 'function') {
+        window.log = log;
+    }
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', function() {
+            const genBtn = document.getElementById('generateBtn');
+            if (genBtn) genBtn.addEventListener('click', ui.generateShoe);
+            const clearBtn = document.getElementById('clearBtn');
+            if (clearBtn) clearBtn.addEventListener('click', ui.clearAll);
+            const applyConfigBtn = document.getElementById('applyConfigBtn');
+            if (applyConfigBtn) applyConfigBtn.addEventListener('click', ui.applySignalConfig);
+            const autoBtn = document.getElementById('btnAutoColor');
+            if (autoBtn) autoBtn.addEventListener('click', ui.runAutoColorSwap);
+            const editBtn = document.getElementById('btnEdit');
+            if (editBtn) editBtn.addEventListener('click', () => activateEditMode('card'));
+            const swapBtn = document.getElementById('btnSwap');
+            if (swapBtn) swapBtn.addEventListener('click', executeSwapAction);
+            const roundBtn = document.getElementById('btnRound');
+            if (roundBtn) roundBtn.addEventListener('click', () => activateEditMode('round'));
+            const cutBtn = document.getElementById('btnCut');
+            if (cutBtn) cutBtn.addEventListener('click', () => log('切牌功能目前尚未在紅0工具中實作。', 'info'));
+            const exportCombinedBtn = document.getElementById('btnExportCombined');
+            if (exportCombinedBtn) exportCombinedBtn.addEventListener('click', exportRoundsAsExcel);
+            const previewBtn = document.getElementById('btnPreview');
+            if (previewBtn) previewBtn.addEventListener('click', previewRoundsInWindow);
+            const speechBtn = document.getElementById('btnSpeech');
+            if (speechBtn) speechBtn.addEventListener('click', speakRoundsSummary);
+            const calcBtn = document.getElementById('btnApplyTools');
+            if (calcBtn) calcBtn.addEventListener('click', showCalcTool);
+            ensureFloatingWidget();
+            const cancelBtn = document.getElementById('btnCancelEdit');
+            if (cancelBtn) cancelBtn.addEventListener('click', () => {
+                if (!editEnabled) return;
+                const hadSelection = EDIT_STATE.mode !== 'none' || EDIT_STATE.first || EDIT_STATE.second;
+                resetEditState();
+                if (hadSelection) log('已取消編輯。', 'info');
+            });
+            const applyChangesBtn = document.getElementById('btnApplyChanges');
+            if (applyChangesBtn) applyChangesBtn.addEventListener('click', () => {
+                if (!editEnabled) {
+                    log('請先生成牌靴。', 'error');
+                    return;
+                }
+                refreshAnalysisAndRender();
+                resetEditState();
+                log('已重新套用並更新統計。', 'success');
+            });
+            const tableBody = document.getElementById('roundsBody');
+            if (tableBody) tableBody.addEventListener('click', handleTableClick);
+
+            document.addEventListener('keydown', (event) => {
+                const activeTag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+                if (activeTag === 'input' || activeTag === 'textarea' || event.target?.isContentEditable) return;
+                if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+                if (event.key === 'z' || event.key === 'Z') {
+                    if (editBtn && !editBtn.disabled) {
+                        event.preventDefault();
+                        editBtn.click();
+                    }
+                } else if (event.key === 'x' || event.key === 'X') {
+                    if (swapBtn && !swapBtn.disabled) {
+                        event.preventDefault();
+                        swapBtn.click();
+                    }
+                }
+            });
+
+            const checkboxes = document.querySelectorAll('.suit-checkbox, .rank-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', ui.updateSignalCardCount);
+            });
+
+            syncUiFromSignalConfig();
+            ui.updateSignalCardCount();
+
+            setEditButtonsAvailability(false);
+            renderDeckSummary(null);
+            log('訊號牌測試系統初始化完成', 'success');
+        });
+    }
+}
+
+return exported;
+})();
