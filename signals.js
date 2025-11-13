@@ -199,28 +199,39 @@ class Simulator {
             return true;
         };
         
+        // ...
         // 補牌邏輯
         if (!natural) {
-            if (p_tot <= 5) {
+            if (p_tot <= 5) { // 閒家補牌
                 if (!draw()) return null;
-                const pt = d[idx - 1].point();
-                p_tot = (p_tot + pt) % 10;
+                const pt = d[idx - 1].point(); // 取得閒家第三張牌點數
+                p_tot = (p_tot + pt) % 10;    // 更新閒家總點數
                 
+                let banker_draws = false; // 判斷莊家是否需要補牌
                 if (b_tot <= 2) {
-                    if (!draw()) return null;
+                    banker_draws = true;
                 } else if (b_tot === 3 && pt !== 8) {
-                    if (!draw()) return null;
+                    banker_draws = true;
                 } else if (b_tot === 4 && [2,3,4,5,6,7].includes(pt)) {
-                    if (!draw()) return null;
+                    banker_draws = true;
                 } else if (b_tot === 5 && [4,5,6,7].includes(pt)) {
-                    if (!draw()) return null;
+                    banker_draws = true;
                 } else if (b_tot === 6 && [6,7].includes(pt)) {
-                    if (!draw()) return null;
+                    banker_draws = true;
                 }
-            } else if (b_tot <= 5) {
+                
+                if (banker_draws) {
+                    if (!draw()) return null; // 莊家補牌
+                    const bt = d[idx - 1].point(); // 【修正】取得莊家第三張牌點數
+                    b_tot = (b_tot + bt) % 10;     // 【修正】更新莊家總點數
+                }
+            } else if (b_tot <= 5) { // 閒家不補牌，莊家補牌
                 if (!draw()) return null;
+                const bt = d[idx - 1].point(); // 【修正】取得莊家第三張牌點數
+                b_tot = (b_tot + bt) % 10;     // 【修正】更新莊家總點數
             }
         }
+
         
         const res = (p_tot === b_tot) ? '和' : ((p_tot > b_tot) ? '閒' : '莊');
         const used = d.slice(start, idx);
@@ -1584,6 +1595,101 @@ function refreshAnalysisAndRender(options = {}) {
     renderStatsGridPreview(currentRounds);
 }
 
+// ==================================================================
+// === 【新增】牌靴規則自動驗證 (稽核) 函式 ===
+// ==================================================================
+/**
+ * 驗證最終牌靴是否符合所有 S 局和 T 局規則
+ * @param {Array} rounds - 最終的 currentRounds 陣列
+ */
+function verifyShoeRules(rounds) {
+    if (!rounds || rounds.length === 0) return;
+    log('========== 牌靴規則驗證開始 ==========','info');
+    let errors = 0;
+
+    // 輔助函式：使用 computeRoundHands (無Bug版) 來取得真實結果
+    const getTrueResult = (r) => {
+        if (!r || !r.cards) return '未知';
+        const handInfo = computeRoundHands(r.cards); //
+        const p = handInfo.playerTotal;
+        const b = handInfo.bankerTotal;
+        if (typeof p !== 'number' || typeof b !== 'number') return '錯誤';
+        if (p === b) return '和';
+        return (p > b) ? '閒' : '莊';
+    };
+
+    for (let i = 0; i < rounds.length; i++) {
+        const current_round = rounds[i];
+        if (!current_round || !current_round.cards) continue;
+        
+        const next_round = rounds[(i + 1) % rounds.length]; // 處理循環 (最後一局 -> 第一局)
+        const round_num = i + 1;
+        const next_round_num = (i === rounds.length - 1) ? 1 : round_num + 1;
+
+        const true_result_current = getTrueResult(current_round);
+        const true_result_next = getTrueResult(next_round);
+
+        // 規則 1: 檢查「結果欄位」和「實際點數」是否一致
+        if (current_round.result !== true_result_current) {
+            log(`違規(1): 第 ${round_num} 局 結果欄位是「${current_round.result}」，但實際點數計算為「${true_result_current}」`, 'error');
+            errors++;
+        }
+
+        // 讀取 S 局和 T 局的標記
+        const is_t_round = current_round.isT; //
+        const has_signal = current_round.cards.some(card => card.isSignalCard()); //
+
+        // 檢查 S 局 / T 局 邏輯 (基於 analyze_signal_cards 的邏輯)
+        if (is_t_round) {
+            // 規則 4: `兩對(T局)下一局不是和`
+            if (true_result_next !== '和') {
+                log(`違規(4): 第 ${round_num} 局是 T局(兩對)，但下一局 (第 ${next_round_num} 局) 實際結果是「${true_result_next}」(應為 和)`, 'error');
+                errors++;
+            }
+        } else if (has_signal) {
+            // 規則 2: `S局(有訊號牌)下一局不是莊`
+            if (true_result_next !== '莊') {
+                log(`違規(2): 第 ${round_num} 局有訊號牌，但下一局 (第 ${next_round_num} 局) 實際結果是「${true_result_next}」(應為 莊)`, 'error');
+                errors++;
+            }
+        } else {
+            // (非 T 局 也 非 S 局)
+            // 規則 5: `非訊號局的下一局是莊`
+            if (true_result_next === '莊') {
+                log(`違規(5): 第 ${round_num} 局 (非T/非S)，但下一局 (第 ${next_round_num} 局) 實際結果是「${true_result_next}」(不應為 莊)`, 'error');
+                errors++;
+            }
+        }
+    } // 迴圈結束
+
+    // 規則 3: `不是S局卻出現訊號牌`
+    // 這個日誌您的原始碼 (line 1019) 已經有了
+    // 我們在這邊重新撈取一次，確保它在驗證區塊中
+    log('--- (補充資訊) 非 S 局的訊號牌檢查 ---', 'info');
+    let nonSSignalCount = 0;
+    const sIndicesForLog = new Set(compute_sidx_for_segment(rounds, 'A')); //
+    rounds.forEach((round, idx) => {
+        if (!round || sIndicesForLog.has(idx)) return; // 略過 S 局
+        const signalCards = round.cards.filter(card => card && card.isSignalCard()); //
+        if (signalCards.length > 0) {
+            log(`資訊(3): 第 ${idx + 1} 局 (非S局定義)，但有 ${signalCards.length} 張訊號牌: ${signalCards.map(c => c.short()).join(', ')}`, 'warn'); // 使用 warn 級別
+            nonSSignalCount++;
+        }
+    });
+    if (nonSSignalCount === 0) {
+        log('資訊(3): 檢查通過，所有訊號牌都在 S 局定義中。', 'info');
+    }
+
+
+    log('------------------------------------', 'info');
+    if (errors === 0) {
+        log('✅ 驗證通過：所有主要規則 (1, 2, 4, 5) 均符合。', 'success');
+    } else {
+        log(`❌ 驗證失敗：共發現 ${errors} 處主要規則違規。`, 'error');
+    }
+    log('========== 牌靴規則驗證結束 ==========','info');
+}
+
 // 主要生成函數 - 使用完整的ABC段排列並自動分析
 // 生成整副牌靴並進行分析
 async function generateShoe() {
@@ -1632,12 +1738,10 @@ async function generateShoe() {
         
         // 3. 統計各段數量
         const a_count = result.a_rounds.length;
-        const b_count = Array.isArray(result.b_rounds) ? result.b_rounds.length : 0;
         const c_count = result.c_cards.length > 0 ? 1 : 0;
         const total_count = currentRounds.length;
         
         log(`A段: ${a_count}局 (敏感局)`, 'info');
-        log(`B段: ${b_count}局 (一般局)`, b_count === 0 ? 'info' : 'warn');
         log(`C段: ${c_count}局 (殘牌)`, 'info');
         log(`總計: ${total_count}局`, 'info');
         
@@ -1700,6 +1804,8 @@ async function generateShoe() {
                 }
             });
         }
+        // 【【【 請在這裡插入呼叫 】】】
+        verifyShoeRules(currentRounds);
         
     } catch (error) {
         log(`生成失敗: ${error.message}`, 'error');

@@ -246,7 +246,7 @@ function multi_pass_candidates_from_cards_simple(card_pool) {
 }
 
 
-// 完整複製原系統的ABC段排列邏輯
+// 完整複製原系統的AC段排列邏輯
 function pack_all_sensitive_and_segment(deck) {
     log(`🔍 開始處理：總共 ${deck.length} 張牌`, 'info');
     
@@ -392,7 +392,7 @@ function pack_all_sensitive_and_segment(deck) {
 
     // 生成完畢後再做一次安全檢查，確保 A 段沒有違規局
     if (typeof ensureNoBannedBankerSixRound === 'function') {
-        ensureNoBannedBankerSixRound(final_rounds);
+        ensureNoBannedBankerSixRound(final_rounds, 'A');
     }
 
     // 取得所有卡牌
@@ -401,7 +401,6 @@ function pack_all_sensitive_and_segment(deck) {
     
     return {
         a_rounds,
-        b_rounds: [],
         c_cards,
         final_rounds,
         final_card_deck

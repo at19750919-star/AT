@@ -218,28 +218,20 @@ body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5
 }
 
 
-/* ---------------------------------------------------------
-   結果表格與卡牌列樣式
+/* =========================================================
+   ① 主表格骨架重設 (和風改造)
    --------------------------------------------------------- */
 .rounds-table {
-  width: 100%; border-collapse: separate; border-spacing: 2px; margin-top: 10px;
-  background: #f4f6f8; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,.1);
+  width: 100%;
+  border-collapse: collapse; /* 關鍵：讓單元格邊框合併，線條更乾淨 */
+  border-spacing: 0; /* 移除單元格間距 */
+  margin-top: 10px;
+  background: transparent; /* 移除背景色，讓它透出下方的和紙背景 */
+  border-radius: 0; /* 移除外層圓角 */
+  box-shadow: none; /* 移除所有陰影 */
+  border: 2px solid #A99884; /* 新增一個像卷軸外框的邊框 */
 }
-.rounds-table th,
-.rounds-table td {
-    border: 1px solid #e2e6ea;
-    padding: 2px 3px;                           /* 進一步縮小內距 */
-    text-align: center;
-    font-size: 20px;                            /* 增大字體 */
-    font-weight: 700;                           /* 更粗的字體 */
-    line-height: 1;                             /* 緊湊的行高 */
-    background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
-    box-shadow:
-      inset 0 -3px 0 rgba(0, 0, 0, 0.12),
-      inset 0  2px 0 rgba(255, 255, 255, 0.65);
-    transition: all 0.2s ease;
-    border-radius: 5px;
-}
+
 
 .rounds-table th {
   padding: 6px 4px; color: #fff;
@@ -718,7 +710,12 @@ body.table-zoom td.color-column .color-chip {
   outline: none;
 }
 
-.selectors-row { display: flex; align-items: center; }
+.selectors-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 讓子元素兩端對齊，撐滿整個寬度 */
+    width: 100%; /* 確保自身填滿父容器 */
+}
 /*花色跟數字分隔線*/
 .separator {
     width: 0px;
@@ -735,10 +732,13 @@ body.table-zoom td.color-column .color-chip {
 
 /* 花色按鈕 */
 .suit-button {
-  --suit-size: 120px;  /* 👈 只要改這個數字！ */
+  --suit-size: 120px;
   
   width: var(--suit-size);
   height: var(--suit-size);
+  max-width: var(--suit-size); /* 增加最大寬度限制 */
+  max-height: var(--suit-size); /* 增加最大高度限制 */
+
   border: none;
   background: transparent;
   display: flex; 
@@ -779,12 +779,26 @@ body.table-zoom td.color-column .color-chip {
   gap: 12px;
 }
 
-.rank-selector { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rank-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap; /* 允許換行，這在小螢幕上很重要 */
+    align-items: center;
+    justify-content: flex-start; /* 讓按鈕從左邊開始排列 */
+    flex: 1; /* 👈 關鍵！讓數字區佔據所有可用的剩餘空間 */
+    min-width: 0; /* 搭配 flex: 1 使用，避免內容溢出 */
+}
 .rank-button {
-  --size: 100px;
+  --size: 100px; /* 我們保留這個變數作為最大寬度的參考 */
   
-  width: var(--size);
-  height: calc(var(--size) * 1.4);  /* 容器變長方形 */
+  /* 讓按鈕有彈性 */
+  flex: 1 1 80px; /* 👈 關鍵！flex-grow: 1, flex-shrink: 1, flex-basis: 80px */
+  
+  /* 移除固定的寬度，改用最大寬度限制 */
+  /* width: var(--size); */ /* 註解或刪除這行 */
+  max-width: var(--size); /* 限制按鈕不會無限放大 */
+
+  height: calc(var(--size) * 1.4);
   border: none;
   background: transparent;
   padding: 0;
@@ -851,7 +865,314 @@ body.table-zoom td.color-column .color-chip {
 .rounds-table td.compare-cell.outcome-tie {
   background: #e8f5e9;
   color: #1b5e20;
+
+/* =========================================================
+   全局設定：和風浮世繪主題
+   ========================================================= */
+
+/* 引入 Google Fonts 字體 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Zen+Antique&display=swap' );
+
+/* :root 定義全局顏色變數 */
+:root {
+    /* --- 基礎色 --- */
+    --color-background: #F5EFEA; /* 溫暖的米白 (主背景) */
+    --color-paper: #FFFBF0;      /* 宣紙/和紙色 (卡片背景) */
+    --color-ink-main: #3A342F;   /* 主墨色 (標題、重要文字) */
+    --color-ink-sub: #595148;    /* 次墨色 (普通內文) */
+    --color-border-light: #DCD3C8; /* 淺棕色邊框 (分隔線) */
+    --color-border-dark: #A99884;  /* 深棕色邊框 (外框) */
+
+    /* --- 強調色 --- */
+    --color-accent-red: #B94047;   /* 朱紅色 (印章、高亮) */
+    --color-accent-blue: #2E4A62;  /* 靛藍色 (次要高亮) */
+    --color-accent-gold: #B59438;  /* 金色 (特殊標記) */
+
+    /* --- 字體 --- */
+    --font-main: 'Noto Serif TC', serif; /* 主字體 (宋體/明體) */
+    --font-title: 'Zen Antique', serif;    /* 標題字體 (古典風格) */
 }
+
+/* 全局 Body 樣式 */
+body {
+    background-color: var(--color-background);
+    /* 如果您有和紙材質圖片，請取消下面這行的註解 */
+    /* background-image: url('path/to/your/washi-texture.png'); */
+    font-family: var(--font-main);
+    color: var(--color-ink-sub);
+    margin: 0;
+}
+
+}
+/*==============================================================================================*/
+/*==============================================================================================================*/
+/* =========================================================
+/* --- 頂部控制區 --- */
+.selection-container,
+.signal-card {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+.selection-container:hover,
+.signal-card:hover {
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+/* 移除舊的 signal-toolbar-row 相關樣式，因為我們已經重組了HTML */
+.signal-toolbar-row {
+    display: flex;
+    gap: 18px;
+    align-items: stretch;
+    width: 100%;
+}
+/* --- 按鈕樣式 --- */
+.suit-button, .rank-button, .icon-btn {
+    transition: transform 0.3s cubic-bezier(.68,-.55,.265,1.55);
+}
+.suit-button:hover, .rank-button:hover, .icon-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+}
+.suit-button.selected {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.7));
+}
+.rank-button.selected::after {
+    /* 保持原有功能 */
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: url('nb/背面.png') center/contain no-repeat;
+    z-index: 1;
+}
+
+
+/*   ①-③ 表格基礎樣式 (骨架、表頭、單元格)
+   --------------------------------------------------------- */
+.rounds-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin-top: 10px;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    border: 1px solid #A99884; /* 邊框改為1px，更精緻 */
+}
+
+.rounds-table th {
+    border: none;
+    border-bottom: 2px solid #3A342F;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    background: #F0EAE4; /* 稍深的綾布色 */
+    box-shadow: none;
+    color: #3A342F;
+    letter-spacing: 1px;
+    font-family: 'Zen Antique', serif;
+}
+
+.rounds-table td {
+    border: none;
+    border-bottom: 1px solid #DCD3C8;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 18px;
+    background: transparent;
+    box-shadow: none;
+    color: #595148;
+    transition: background-color 0.3s ease;
+}
+
+.rounds-table th.cards-column,
+.rounds-table td.cards-column,
+.rounds-table td.color-column { 
+    text-align: left; 
+    padding-left: 12px; 
+}
+
+/* =========================================================
+   ④ 核心：狀態與高亮樣式 (和風改造)
+   --------------------------------------------------------- */
+
+/* --- 1. 訊號牌字體顏色 (Signal Cards) --- */
+/* 我們保留顏色，但可以加強字重或增加底紋來凸顯 */
+.card-label.s-signal-card { 
+    color: #B94047; /* 使用我們定義的朱紅色 */
+    font-weight: 700; /* 加粗 */
+}
+.card-label.non-s-signal-card { 
+    color: #6c635b; /* 非訊號牌使用更柔和的墨色 */
+}
+
+/* --- 2. 特殊局高亮 (S局 / T局 / 兩對) --- */
+/* 放棄舊的亮色背景，改用更典雅的標記方式 */
+
+/* 兩對局 (two-pairs-round) */
+.rounds-table tr.two-pairs-round td {
+    background: rgba(212, 175, 55, 0.08); /* 淡淡的金色背景 */
+}
+.rounds-table tr.two-pairs-round td:first-child::before {
+    content: '對'; /* 在局數前用文字標記 */
+    color: #B59438;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* S局或T局 (s-signal-round) */
+.rounds-table tr.s-signal-round td.cards-column {
+    background: rgba(185, 64, 71, 0.07); /* 淡淡的朱紅色背景 */
+    box-shadow: inset 3px 0 0 #B94047; /* 左側出現一條朱紅色標記線 */
+}
+
+/* --- 3. 莊家6點勝 (banker-six-point) --- */
+/* 同樣放棄刺眼的粉色背景，改用標記 */
+.rounds-table td.banker-six-point {
+    background: transparent !important; /* 強制覆蓋舊樣式 */
+    color: #B94047; /* 使用朱紅色文字 */
+    font-weight: 700;
+    position: relative; /* 為了添加標記 */
+}
+/* 在點數旁邊加一個小小的「六」字或圖章 */
+.rounds-table td.banker-six-point::after {
+    content: '六';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #B94047;
+    opacity: 0.8;
+}
+
+/* --- 4. 結果欄位顏色 (outcome-*) --- */
+/* 這些是顯示「莊/閒/和」結果的儲存格，需要保留清晰度 */
+.rounds-table td.result-cell.outcome-banker,
+.rounds-table td.compare-cell.outcome-banker {
+  background: rgba(185, 64, 71, 0.07); /* 淡朱紅背景 */
+  color: #B94047; /* 深朱紅文字 */
+}
+.rounds-table td.result-cell.outcome-player,
+.rounds-table td.compare-cell.outcome-player {
+  background: rgba(46, 74, 98, 0.08); /* 淡靛藍背景 */
+  color: #2E4A62; /* 深靛藍文字 */
+}
+.rounds-table td.result-cell.outcome-tie,
+.rounds-table td.compare-cell.outcome-tie {
+  background: rgba(181, 148, 56, 0.1); /* 淡金色背景 */
+  color: #B59438; /* 深金色文字 */
+}
+
+/* --- 5. 卡牌與卡色標籤 (card-label, color-chip) --- */
+/* 這些小標籤也需要改造 */
+.card-label {
+    background: #F8F3ED; /* 淺米色背景 */
+    color: #595148; /* 墨色文字 */
+    border-radius: 4px;
+    box-shadow: none;
+    border: 1px solid #DCD3C8;
+    padding: 1px 4px;
+    min-width: 32px;
+    min-height: 28px;
+    font-size: 20px;
+}
+.card-back-blue { background: #E4EBF2 !important; border-color: #C2CCD8 !important; }
+.card-back-red  { background: #F5E8E9 !important; border-color: #DDC9CB !important; }
+
+.color-chip {
+    border-radius: 50%; /* 改成圓形，像圍棋棋子 */
+    width: 30px;
+    height: 30px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.color-chip.red { background: linear-gradient(145deg,#c94a4a 0%,#a13838 100%); }
+.color-chip.blue { background: linear-gradient(145deg,#4a7ac9 0%,#385fa1 100%); }
+
+/* --- 右側欄 --- */
+.right-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.right-pane-tools { /* 包裹切牌和圓餅圖的容器 */
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+}
+
+/* 日誌區 */
+.log {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+    padding: 16px;
+    font-family: var(--font-main);
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--color-ink-sub);
+    min-height: 300px;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
+}
+.log .success { color: #2E7D32; } /* 綠色，更沉穩 */
+.log .error { color: var(--color-accent-red); } /* 朱紅色 */
+.log .info { color: var(--color-accent-blue); } /* 靛藍色 */
+
+/* 迷你預覽格 */
+.mini-grid-wrapper {
+    border: 1px solid var(--color-border-light);
+    border-radius: 10px;
+    background: var(--color-paper);
+    overflow: hidden;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
+}
+.grid-preview .cell {
+    background: #F8F3ED;
+    border: 1px solid var(--color-border-light);
+}
+/* ... 其他 grid-preview 樣式可以保留，顏色會被覆蓋 ... */
+
+/* 切牌與圓餅圖卡片 */
+.cut-card, .circle-card {
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
+}
+.cut-controls .btn { /* 切牌按鈕 */
+    background: var(--color-accent-red);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-main);
+}
+.cut-controls .btn:hover {
+    background: #963338;
+}
+.input-inline { /* 切牌輸入框 */
+    background: #F0EAE4;
+    color: var(--color-ink-main);
+    border-radius: 6px;
+}
+.input-inline input {
+    color: var(--color-ink-main);
+}
+
+/* 圓餅圖 */
+.result-circle {
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--color-border-light);
+}
+.result-circle-center {
+    background: var(--color-paper);
+    color: var(--color-accent-gold);
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+}
+
 
 </style>
 
@@ -866,182 +1187,170 @@ body.table-zoom td.color-column .color-chip {
     <!-- 懸浮按鈕：返回主頁 -->
     <button class="back-to-main" id="backToMain" title="返回主頁">🏯</button>
     
-    <!-- 主要內容容器 -->
-    <div class="container">
-        
-        <!-- 區塊一：創建區 -->
-        <div class="controls">
-            <div class="signal-card-grid">
-                <section class="selection-container signal-card signal-main">
-                    <!-- 花色和數字選擇器 -->
-                    <div class="selectors-row">
-                        <!-- 花色選擇（圓形按鈕） -->
-                        <div class="suit-selector">
-                            <a class="suit-button 黑桃" data-value="♠">
-                                <img src="suit/黑桃.png" alt="黑桃">
-                            </a>
-                            <a class="suit-button 愛心" data-value="♥">
-                                <img src="suit/愛心.png" alt="愛心">
-                            </a>
-                            <a class="suit-button 方塊" data-value="♦">
-                                <img src="suit/方塊.png" alt="方塊">
-                            </a>
-                            <a class="suit-button 梅花" data-value="♣">
-                                <img src="suit/梅花.png" alt="梅花">
-                            </a>
-                        </div>
-                        <div class="separator"></div>
-                        <!-- 數字選擇（方形按鈕） -->
-                        <div class="rank-selector">
-                            <a class="rank-button" data-value="A"><img src="nb/A.png" alt="A"></a>
-                            <a class="rank-button" data-value="2"><img src="nb/2.png" alt="2"></a>
-                            <a class="rank-button" data-value="3"><img src="nb/3.png" alt="3"></a>
-                            <a class="rank-button" data-value="4"><img src="nb/4.png" alt="4"></a>
-                            <a class="rank-button" data-value="5"><img src="nb/5.png" alt="5"></a>
-                            <a class="rank-button" data-value="6"><img src="nb/6.png" alt="6"></a>
-                            <a class="rank-button" data-value="7"><img src="nb/7.png" alt="7"></a>
-                            <a class="rank-button" data-value="8"><img src="nb/8.png" alt="8"></a>
-                            <a class="rank-button" data-value="9"><img src="nb/9.png" alt="9"></a>
-                            <a class="rank-button" data-value="10"><img src="nb/10.png" alt="10"></a>
-                            <a class="rank-button" data-value="J"><img src="nb/J.png" alt="J"></a>
-                            <a class="rank-button" data-value="Q"><img src="nb/Q.png" alt="Q"></a>
-                            <a class="rank-button" data-value="K"><img src="nb/K.png" alt="K"></a>
-                        </div>
+<!-- 主要內容容器 -->
+<div class="container">
+    
+    <!-- =================================================================== -->
+    <!-- === 新佈局：控制區 === -->
+    <!-- =================================================================== -->
+    <div class="controls">
+        <div class="signal-card-grid">
+
+            <!-- =========================================================
+                ① 新的第一行：花色選擇器 + 圓形工具按鈕
+            ========================================================== -->
+            <section class="selection-container signal-card signal-main">
+                <div class="selectors-row" style="justify-content: space-between; align-items: center;">
+                    
+                    <!-- 左側：花色選擇 -->
+                    <div class="suit-selector">
+                        <a class="suit-button 黑桃" data-value="♠"><img src="suit/黑桃.png" alt="黑桃"></a>
+                        <a class="suit-button 愛心" data-value="♥"><img src="suit/愛心.png" alt="愛心"></a>
+                        <a class="suit-button 方塊" data-value="♦"><img src="suit/方塊.png" alt="方塊"></a>
+                        <a class="suit-button 梅花" data-value="♣"><img src="suit/梅花.png" alt="梅花"></a>
                     </div>
 
-                    <!-- 隱藏的 checkbox（保持原功能） -->
-                    <div class="rank-checkboxes" style="display: none;">
-                        <label><input type="checkbox" value="A" class="rank-checkbox"> A</label>
-                        <label><input type="checkbox" value="2" class="rank-checkbox"> 2</label>
-                        <label><input type="checkbox" value="3" class="rank-checkbox"> 3</label>
-                        <label><input type="checkbox" value="4" class="rank-checkbox"> 4</label>
-                        <label><input type="checkbox" value="5" class="rank-checkbox"> 5</label>
-                        <label><input type="checkbox" value="6" class="rank-checkbox"> 6</label>
-                        <label><input type="checkbox" value="7" class="rank-checkbox"> 7</label>
-                        <label><input type="checkbox" value="8" class="rank-checkbox"> 8</label>
-                        <label><input type="checkbox" value="9" class="rank-checkbox"> 9</label>
-                        <label><input type="checkbox" value="10" class="rank-checkbox"> 10</label>
-                        <label><input type="checkbox" value="J" class="rank-checkbox"> J</label>
-                        <label><input type="checkbox" value="Q" class="rank-checkbox"> Q</label>
-                        <label><input type="checkbox" value="K" class="rank-checkbox"> K</label>
+                    <!-- 右側：圓形工具按鈕 (從 edit-card 搬過來) -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="edit-buttons">
+                            <button class="btn icon-btn" id="btnEdit" disabled aria-label="編輯" style="--icon-size: 160%;"><img src="suit/編輯.png" alt="編輯"></button>
+                            <button class="btn icon-btn" id="btnSwap" disabled aria-label="卡交換" style="--icon-size: 140%;"><img src="suit/卡交換.png" alt="卡交換"></button>
+                            <button class="btn icon-btn" id="btnRound" disabled aria-label="局交換" style="--icon-size: 140%;"><img src="suit/局交換.png" alt="局交換"></button>
+                            <button class="btn icon-btn" id="btnAutoColor" disabled aria-label="卡色" style="--icon-size: 140%;"><img src="suit/卡色.png" alt="卡色"></button>
+                            <button class="btn icon-btn" id="btnCancelEdit" disabled aria-label="取消" style="--icon-size: 140%;"><img src="suit/取消.png" alt="取消"></button>
+                            <button class="btn icon-btn" id="btnApplyChanges" disabled aria-label="套用" style="--icon-size: 140%;"><img src="suit/套用.png" alt="套用"></button>
+                            <button class="btn icon-btn" id="clearBtn" aria-label="清空" style="--icon-size: 140%;"><img src="suit/清空.png" alt="清空"></button>
+                        </div>
+                        <div class="tool-actions">
+                            <button class="btn icon-btn" id="btnExportCombined" aria-label="導出 Excel" style="--icon-size: 120%;"><img src="suit/excel.png" alt="導出 Excel"></button>
+                            <button class="btn icon-btn" id="btnPreview" aria-label="預覽" style="--icon-size: 180%;"><img src="suit/預覽.png" alt="預覽"></button>
+                            <button class="btn icon-btn" id="btnSpeech" aria-label="語音" style="--icon-size: 180%;"><img src="suit/語音.png" alt="語音"></button>
+                            <button class="btn icon-btn" id="btnApplyTools" aria-label="計算工具" style="--icon-size: 170%;"><img src="suit/計算.png" alt="計算工具"></button>
+                        </div>
                     </div>
-                </section>
-
-                <!-- 工具列容器：四張卡片在同一行 -->
-                <div class="signal-toolbar-row">
-                    <!-- 卡片一：訊號操作 -->
-                    <section class="signal-card signal-toolbar quick-card">
-                        <div class="edit-toolbar">
-                            <div class="quick-actions">
-                                <div class="primary-actions">
-                                    <button id="generateBtn" aria-label="GO">
-                                        <img src="suit/GO.png" alt="GO">
-                                    </button>
-                                    <div class="signal-count-row">
-                                        <div class="signal-count-card">
-                                            <img src="suit/張數.png" alt="訊號牌張數">
-                                            <span id="signalCardCount" class="signal-count-value">0</span>
-                                        </div>
-                                        <button type="button" class="signal-clear-btn" onclick="clearSignalSelections()" aria-label="清除訊號牌">
-                                            <img src="suit/清除.png" alt="清除">
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                    <!-- 卡片二：編輯工具列 -->
-                    <section class="signal-card signal-toolbar edit-card">
-                        <div class="edit-toolbar">
-                            <div class="edit-buttons">
-                                <button class="btn icon-btn" id="btnEdit" disabled aria-label="編輯" style="--icon-size: 160%;">
-                                    <img src="suit/編輯.png" alt="編輯">
-                                </button>
-                                <button class="btn icon-btn" id="btnSwap" disabled aria-label="卡交換" style="--icon-size: 140%;">
-                                    <img src="suit/卡交換.png" alt="卡交換">
-                                </button>
-                                <button class="btn icon-btn" id="btnRound" disabled aria-label="局交換" style="--icon-size: 140%;">
-                                    <img src="suit/局交換.png" alt="局交換">
-                                </button>
-                                <button class="btn icon-btn" id="btnAutoColor" disabled aria-label="卡色" style="--icon-size: 140%;">
-                                    <img src="suit/卡色.png" alt="卡色">
-                                </button>
-                                <button class="btn icon-btn" id="btnCancelEdit" disabled aria-label="取消" style="--icon-size: 140%;">
-                                    <img src="suit/取消.png" alt="取消">
-                                </button>
-                                <button class="btn icon-btn" id="btnApplyChanges" disabled aria-label="套用" style="--icon-size: 140%;">
-                                    <img src="suit/套用.png" alt="套用">
-                                </button>
-                                <button class="btn icon-btn" id="clearBtn" aria-label="清空" style="--icon-size: 140%;">
-                                    <img src="suit/清空.png" alt="清空">
-                                </button>
-                                <div class="tool-actions">
-                                    <button class="btn icon-btn" id="btnExportCombined" aria-label="導出 Excel" style="--icon-size: 120%;">
-                                        <img src="suit/excel.png" alt="導出 Excel">
-                                    </button>
-                                    <button class="btn icon-btn" id="btnPreview" aria-label="預覽" style="--icon-size: 180%;">
-                                        <img src="suit/預覽.png" alt="預覽">
-                                    </button>
-                                    <button class="btn icon-btn" id="btnSpeech" aria-label="語音" style="--icon-size: 180%;">
-                                        <img src="suit/語音.png" alt="語音">
-                                    </button>
-                                    <button class="btn icon-btn" id="btnApplyTools" aria-label="計算工具" style="--icon-size: 170%;">
-                                        <img src="suit/計算.png" alt="計算工具">
-                                    </button>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 卡片三：切牌控制 -->
-                    <section class="signal-card signal-toolbar cut-card">
-                        <div class="edit-toolbar">
-                            <div class="cut-controls">
-                                <div class="input-inline">
-                                    <label for="cutPos">切牌張數</label>
-                                    <input id="cutPos" type="number" min="0" value="0">
-                                </div>
-                                <button class="btn" id="btnCut">切牌</button>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 卡片四：結果分布圓餅圖 -->
-                    <section class="signal-card signal-toolbar circle-card">
-                        <div class="edit-toolbar">
-                            <div class="circle-stat-wrapper">
-                                <div class="result-circle" id="resultCircle">
-                                    <div class="circle-segment-label banker" id="circleBankerLabel">0</div>
-                                    <div class="circle-segment-label player" id="circlePlayerLabel">0</div>
-                                    <div class="circle-segment-label tie" id="circleTieLabel">0</div>
-                                    <div class="result-circle-center">
-                                        <span id="circleTotal">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                 </div>
-            </div>
-        </div>
-        <!-- 區塊四＋五：左表右誌 -->
-        <div class="results-split">
-          <div class="left-pane">
-            <table class="rounds-table" id="roundsTable" style="display: none; margin-top: 0;">
-              <thead id="roundsHead"></thead>
-              <tbody id="roundsBody"></tbody>
-            </table>
-          </div>
+            </section>
 
-          <div class="right-pane">
-            <div class="log" id="logArea"></div>
-            <div class="mini-grid-wrapper">
-              <div class="grid-preview mini" id="statsGridPreview"><div class="grid-placeholder">尚無牌靴資料</div></div>
-            </div>
-            <div class="signal-summary" id="signalSummary"></div>
-          </div>
+            <!-- =========================================================
+                ② 新的第二行：忍者/GO按鈕 + 數字牌卡選擇器
+            ========================================================== -->
+            <section class="selection-container signal-card signal-main">
+                <div class="selectors-row" style="justify-content: space-between; align-items: center;">
+
+                    <!-- 左側：忍者/GO/清除按鈕 -->
+                    <div class="quick-actions">
+                        <div class="primary-actions">
+                            <button id="generateBtn" aria-label="GO"><img src="suit/GO.png" alt="GO"></button>
+                            <div class="signal-count-row">
+                                <div class="signal-count-card">
+                                    <img src="suit/張數.png" alt="訊號牌張數">
+                                    <span id="signalCardCount" class="signal-count-value">0</span>
+                                </div>
+                                <button type="button" class="signal-clear-btn" onclick="clearSignalSelections()" aria-label="清除訊號牌"><img src="suit/清除.png" alt="清除"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右側：數字牌卡選擇 -->
+                    <div class="rank-selector" style="flex: 1; justify-content: flex-end;">
+                        <a class="rank-button" data-value="A"><img src="nb/A.png" alt="A"></a>
+                        <a class="rank-button" data-value="2"><img src="nb/2.png" alt="2"></a>
+                        <a class="rank-button" data-value="3"><img src="nb/3.png" alt="3"></a>
+                        <a class="rank-button" data-value="4"><img src="nb/4.png" alt="4"></a>
+                        <a class="rank-button" data-value="5"><img src="nb/5.png" alt="5"></a>
+                        <a class="rank-button" data-value="6"><img src="nb/6.png" alt="6"></a>
+                        <a class="rank-button" data-value="7"><img src="nb/7.png" alt="7"></a>
+                        <a class="rank-button" data-value="8"><img src="nb/8.png" alt="8"></a>
+                        <a class="rank-button" data-value="9"><img src="nb/9.png" alt="9"></a>
+                        <a class="rank-button" data-value="10"><img src="nb/10.png" alt="10"></a>
+                        <a class="rank-button" data-value="J"><img src="nb/J.png" alt="J"></a>
+                        <a class="rank-button" data-value="Q"><img src="nb/Q.png" alt="Q"></a>
+                        <a class="rank-button" data-value="K"><img src="nb/K.png" alt="K"></a>
+                    </div>
+                </div>
+                
+                <!-- 隱藏的 checkbox (正確位置：保持在 selection-container 內部) -->
+                <div class="rank-checkboxes" style="display: none;">
+                    <label><input type="checkbox" value="A" class="rank-checkbox"> A</label>
+                    <label><input type="checkbox" value="2" class="rank-checkbox"> 2</label>
+                    <label><input type="checkbox" value="3" class="rank-checkbox"> 3</label>
+                    <label><input type="checkbox" value="4" class="rank-checkbox"> 4</label>
+                    <label><input type="checkbox" value="5" class="rank-checkbox"> 5</label>
+                    <label><input type="checkbox" value="6" class="rank-checkbox"> 6</label>
+                    <label><input type="checkbox" value="7" class="rank-checkbox"> 7</label>
+                    <label><input type="checkbox" value="8" class="rank-checkbox"> 8</label>
+                    <label><input type="checkbox" value="9" class="rank-checkbox"> 9</label>
+                    <label><input type="checkbox" value="10" class="rank-checkbox"> 10</label>
+                    <label><input type="checkbox" value="J" class="rank-checkbox"> J</label>
+                    <label><input type="checkbox" value="Q" class="rank-checkbox"> Q</label>
+                    <label><input type="checkbox" value="K" class="rank-checkbox"> K</label>
+                </div>
+            </section>
+
         </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- === 新佈局：下方結果區 === -->
+    <!-- =================================================================== -->
+    <div class="results-split">
+      
+      <!-- 左側欄：表格 -->
+      <div class="left-pane">
+        <table class="rounds-table" id="roundsTable" style="display: none; margin-top: 0;">
+          <thead id="roundsHead"></thead>
+          <tbody id="roundsBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 右側欄：日誌與新工具 -->
+      <div class="right-pane">
+        
+        <!-- 新增的工具區：切牌與圓餅圖 -->
+        <div class="right-pane-tools" style="display: flex; gap: 18px; margin-bottom: 18px; justify-content: center; align-items: center;">
+            
+            <!-- 切牌卡片 (從上方搬下來) -->
+            <section class="signal-card signal-toolbar cut-card">
+                <div class="edit-toolbar">
+                    <div class="cut-controls">
+                        <div class="input-inline">
+                            <label for="cutPos">切牌張數</label>
+                            <input id="cutPos" type="number" min="0" value="0">
+                        </div>
+                        <button class="btn" id="btnCut">切牌</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 圓餅圖卡片 (從上方搬下來) -->
+            <section class="signal-card signal-toolbar circle-card">
+                <div class="edit-toolbar">
+                    <div class="circle-stat-wrapper">
+                        <div class="result-circle" id="resultCircle">
+                            <div class="circle-segment-label banker" id="circleBankerLabel"></div>
+<div class="circle-segment-label player" id="circlePlayerLabel"></div>
+<div class="circle-segment-label tie" id="circleTieLabel"></div>
+
+                            <div class="result-circle-center">
+                                <span id="circleTotal"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 原本的日誌與其他內容 -->
+        <div class="log" id="logArea"></div>
+        <div class="mini-grid-wrapper">
+          <div class="grid-preview mini" id="statsGridPreview"><div class="grid-placeholder">尚無牌靴資料</div></div>
+        </div>
+        <div class="signal-summary" id="signalSummary"></div>
+      </div>
+    </div>
+
+</div>
+
 
 	    <!-- =================================================================== -->
 	    <!-- === 4. JavaScript 腳本區 (Scripting) === -->
