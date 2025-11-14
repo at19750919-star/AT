@@ -48,7 +48,7 @@ if (suits.length === 0) {
     const countElement = document.getElementById('signalCardCount');
     if (countElement) {
         countElement.textContent = totalCards;
-        countElement.style.color = '#28a745';
+        countElement.style.color = '#3A342F';
     }
 }
 
@@ -410,7 +410,7 @@ function pack_all_sensitive_and_segment(deck) {
 // T局訊號處理:兩對局→下一局和局
 function applyTSignalLogic(rounds, a_rounds, used_pos, tail_cards) {
     if (!Array.isArray(a_rounds) || !(used_pos instanceof Set)) {
-        return applyTSignalLogicSimple(rounds);
+        throw new Error('❌ 錯誤：T局邏輯初始化失敗，關鍵資料格式不正確。a_rounds 或 used_pos 缺失，將重新啟動牌靴生成流程。');
     }
     log('開始T局訊號處理:兩對局 → 下一局和局', 'info');
 

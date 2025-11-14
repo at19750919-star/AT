@@ -7,6 +7,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AT 3.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=Zen+Antique&family=Sawarabi+Mincho&display=swap" rel="stylesheet">
 
     <!-- =================================================================== -->
     <!-- === 2. CSS 樣式區 (Styling) === -->
@@ -59,7 +62,13 @@
    ---------------------------------------------------------
    調整 body/container、控制欄按鈕、mini-grid 等寬度與間距。
    --------------------------------------------------------- */
-body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5f5f5; }
+body {
+  font-family: var(--font-main);
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-ink-sub);
+}
+
 .container { width: 100%; margin: 0; background: #fff; padding: 20px; box-sizing: border-box; }
 
 /* ---------------------------------------------------------
@@ -129,26 +138,24 @@ body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5
    圓圈統計圖主體 - 動態顯示莊閒和的比例
    --------------------------------------------------------- */
 .result-circle {
-  width: 120px;              /* 圓圈寬度 120px */
-  height: 120px;             /* 圓圈高度 120px */
-  border-radius: 50%;        /* 設為圓形（50% 邊角半徑）*/
-  
-  /* 背景使用圓錐漸層 (conic-gradient)：
-     - 淺紅色 #fdecea（0-120度）：代表莊家區域
-     - 淺藍色 #e3f2fd（120-240度）：代表閒家區域  
-     - 淺綠色 #e8f5e9（240-360度）：代表和局區域
-     註：此預設值會被 JavaScript 根據實際比例動態更新 */
-  background: conic-gradient(#faddda 0deg 120deg, #cde6f8 120deg 240deg, #d7f7da 240deg 360deg);
-  
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  /* 改用和風主題色：朱紅、靛藍、金色，透明度壓低一點像淡墨 */
+  background: conic-gradient(
+    rgba(185, 64, 71, 0.35) 0deg 120deg,    /* 朱紅：對應 --color-accent-red */
+    rgba(46, 74, 98, 0.35) 120deg 240deg,   /* 靛藍：對應 --color-accent-blue */
+    rgba(181, 148, 56, 0.35) 240deg 360deg  /* 金色：對應 --color-accent-gold */
+  );
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;        /* 相對定位，供內部文字標籤使用絕對定位 */
-  
-  /* 使用與卡片相同的淡邊框並保留輕微投影 */
-  border: 1px solid rgba(15,23,42,0.08);
-  box-shadow: 0 6px 12px rgba(0,0,0,.08);
+  position: relative;
+  /* 邊框改成像筆畫一圈的墨線，拿掉厚重陰影 */
+  border: 2px solid var(--color-border-dark);
+  box-shadow: none;
 }
+
 
 /* ---------------------------------------------------------
    圓圈上的文字標籤（莊、閒、和）
@@ -166,20 +173,21 @@ body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5
   transition: all 0.3s ease; /* 位置、顏色變化時的平滑過渡動畫（0.3秒）*/
 }
 
-/* 莊家標籤：深紅色 */
+/* 莊家標籤：朱紅 */
 .circle-segment-label.banker {
-  color: #8B0000;           /* 深紅色 DarkRed（RGB: 139, 0, 0）*/
+  color: var(--color-accent-red);
 }
 
-/* 閒家標籤：深藍色 */
+/* 閒家標籤：靛藍 */
 .circle-segment-label.player {
-  color: #00008B;           /* 深藍色 DarkBlue（RGB: 0, 0, 139）*/
+  color: var(--color-accent-blue);
 }
 
-/* 和局標籤：深綠色 */
+/* 和局標籤：金色 */
 .circle-segment-label.tie {
-  color: #006400;           /* 深綠色 DarkGreen（RGB: 0, 100, 0）*/
+  color: var(--color-accent-gold);
 }
+
 
 /* =========================================================
    ⑤ 結果區：表格 / 日誌 / 摘要
@@ -193,23 +201,20 @@ body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5
 }
 .log .success { color: #28a745; } .log .error { color: #dc3545; } .log .info { color: #17a2b8; }
 
-/* ---------------------------------------------------------
-   圓圈中心的圓形區塊（已移除，此樣式保留供未來使用）
-   原本用於顯示總局數，現在統計數字直接顯示在圓圈區域上
-   --------------------------------------------------------- */
 .result-circle-center {
-  width: 40px;              /* 中心圓寬度 52px */
-  height: 40px;             /* 中心圓高度 52px */
-  border-radius: 50%;       /* 設為圓形 */
-  background: #eef7c6;      /* 深藍灰色背景（RGB: 15, 23, 42）*/
-  color: #c0c403;           /* 淺灰白色文字（RGB: 248, 250, 252）*/
-  display: flex;            /* 彈性盒子佈局 */
-  flex-direction: column;   /* 垂直排列內容 */
-  align-items: center;      /* 水平居中 */
-  justify-content: center;  /* 垂直居中 */
-  font-size: 26px;          /* 數字大小 26px */
-  font-weight: 700;         /* 數字粗體 */
-  text-align: center;       /* 文字置中 */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-paper);          /* 和紙色 */
+  color: var(--color-ink-main);           /* 墨色文字 */
+  border: 1px solid var(--color-border-dark); /* 細金棕色外框 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;                        /* 字稍微縮小一點 */
+  font-weight: 700;
+  text-align: center;
 }
 
 /* 當中心圓數字為 0 時隱藏整個中心圓（沒有資料時不顯示） */
@@ -256,17 +261,7 @@ body { font-family: 'Microsoft JhengHei', sans-serif; margin: 0; background: #f5
   padding-bottom: 4px;
 }
 
-.rounds-table td.hand-card-cell {                                   /* 合併後：單張手牌欄也靠左且保留原字型設定 */
-  text-align: left; font-family: 'JetBrains Mono','Noto Sans',monospace;
-  white-space: nowrap; padding-left: 6px;
-}
-
 /* 次要欄位：淡背景色 */
-.rounds-table td.minor-column {
-  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%) !important;
-  opacity: 0.85;
-}
-
 .rounds-table td.hand-point-cell { font-weight: 800; color: #0d6efd; font-size: 22px; line-height: 1; }
 
 .rounds-table td.banker-six-point {
@@ -342,17 +337,17 @@ body.table-zoom td.color-column .color-chip {
 /* 卡牌籤字體與尺寸（要調整卡牌欄字級修改這裡） */
 .card-label {
   display: inline-flex; align-items: center; justify-content: center;
-  padding: 1px 3px; min-width: 36px; min-height: 30px;
+  padding: 0 2px; min-width: 34px; min-height: 26px;
   border-radius: 6px; background: #e7edf7; color: #233043; font-size: 22px; font-weight: 400;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,.08); transition: transform .1s ease, box-shadow .1s ease; cursor: pointer;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.08); transition: transform .1s ease, box-shadow .1s ease; cursor: pointer;
   line-height: 1;
 }
-.rounds-table td.cards-column { min-width: 220px; } /* 卡牌欄維持固定寬度，避免被後面欄位擠壓 */
+.rounds-table td.cards-column { min-width: 220px; padding: 0 8px; } /* 卡牌欄維持固定寬度，避免被後面欄位擠壓 */
 /* 卡牌列維持單行排列，需要時可以橫向捲動 */
 .rounds-table td.cards-column .card-strip {
   display: flex;
   flex-wrap: nowrap;
-  gap: 3px;
+  gap: 2px;
   justify-content: flex-start;
   overflow-x: auto;
   padding: 2px 0 0;
@@ -382,22 +377,49 @@ body.table-zoom td.color-column .color-chip {
 /* =========================================================
    ⑧ 特殊行高亮（兩對、訊號行）
    --------------------------------------------------------- */
-.two-pairs-round { background: #dfeeff !important; box-shadow: inset 8px 0 0 rgba(30,98,208,.35); }
-.rounds-table tr.two-pairs-round td { background: #e8f3ff; }
-.rounds-table tr.two-pairs-round.s-signal-round td.cards-column { background: #fff6d6; }
-.rounds-table tr.s-signal-round td.cards-column { background: #fff9dd; }
+.two-pairs-round {
+  /* 兩對行只在前兩欄給予淺藍底與左側條紋提示 */
+}
+.rounds-table tr.two-pairs-round td:nth-child(1) {
+  box-shadow: inset -8px 0 0 rgba(34, 139, 34, 0.65);
+}
+.rounds-table tr.s-signal-round td:nth-child(1) {
+  box-shadow: inset -3px 0 0 #B94047;
+}
+.rounds-table tr.s-signal-round td.result-cell,
+.rounds-table tr.s-signal-round td.compare-cell {
+  box-shadow: inset 3px 0 0 #B94047;
+}
+.rounds-table tr.two-pairs-round td.result-cell,
+.rounds-table tr.two-pairs-round td.compare-cell {
+  box-shadow: inset 8px 0 0 rgba(34, 139, 34, 0.65);
+}
 .red-zero { color: #92000f; font-weight: 700; }  /* 純文字標記「紅 0」時可用 */
 .zero-card { background: #d4edda; }              /* 備用底色 */
+.rounds-table td.segment-column.violation-segment {
+  background: #47ad0b;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px #ffb74d;
+  color: #2d1400;
+  font-weight: 700;
+}
 
 .back-to-main {
   position: fixed; top: 20px; left: 20px; right: auto; width: 48px; height: 48px; z-index: 9999;
-  border-radius: 12px; border: 2px solid rgba(245,87,108,.6); background: transparent;
-  color: #f5576c; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: .3s;
+  border-radius: 10px;
+  border: 2px solid var(--color-accent-red);
+  background: var(--color-paper);
+  color: var(--color-accent-red);
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 3px 3px 8px rgba(0,0,0,.12);
+  transition: .3s;
 }
 .back-to-main:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 9px 24px rgba(0,0,0,.25);
+  transform: translateY(-2px);
+  box-shadow: 5px 5px 12px rgba(0,0,0,.18);
 }
+
 
 /* =========================================================
    編輯工具列內部佈局
@@ -432,10 +454,10 @@ body.table-zoom td.color-column .color-chip {
     align-items: center;              /* 垂直置中對齊 */
     justify-content: center;          /* 水平置中對齊 */
 }
-.edit-buttons { display: flex; align-items: center; gap: 20px; flex-wrap: nowrap; }
+.edit-buttons { display: flex; align-items: center; gap: 100px; flex-wrap: nowrap; }
 .edit-buttons .btn.icon-btn,
 .tool-actions .btn.icon-btn {
-  width: 84px;
+  width: 90px;
   height: 84px;
   padding: 6px;
   border: none;
@@ -627,19 +649,23 @@ body.table-zoom td.color-column .color-chip {
 .primary-actions strong { font-size: 16px; color: #333; white-space: nowrap; }
 .signal-count-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 2px;
 }
 .signal-count-card {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 88px;
+  height: 88px;
 }
 .signal-count-card img {
-  width: 100%;
-  height: 100%;
+  width: 80%;
+  height: 80%;
+  position: absolute;
+  inset: 10%;
   display: block;
   object-fit: contain;
+  margin: auto;
 }
 .signal-count-value {
   position: absolute;
@@ -648,21 +674,24 @@ body.table-zoom td.color-column .color-chip {
   transform: translate(-50%, -50%);
   font-size: 24px;
   font-weight: 700;
-  color: #0f172a;
+  color: #000000;
+  font-family: 'Zen Antique', 'Sawarabi Mincho', 'Noto Serif TC', serif;
   pointer-events: none;
 }
+/*卷軸*/
 .signal-clear-btn {
   padding: 0;
   background: transparent;
   border: none;
-  width: 70px;
-  height: 120px;
+  width: 48px;
+  height: 70px;
   box-shadow: none;
   line-height: 0;
 }
+/*卷軸*/
 .signal-clear-btn img {
-  width: 100%;
-  height: 100%;
+  width: 90%;
+  height: 90%;
   object-fit: contain;
   display: block;
   margin: auto;
@@ -678,8 +707,8 @@ body.table-zoom td.color-column .color-chip {
 }
 
 .primary-actions button#generateBtn {
-    width: 120px;
-    height: 120px;
+    width: 140px;
+    height: 140px;
     padding: 0;
     background: transparent;
     border: none;
@@ -713,8 +742,22 @@ body.table-zoom td.color-column .color-chip {
 .selectors-row {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* 讓子元素兩端對齊，撐滿整個寬度 */
+    justify-content: flex-start; /* 讓按鈕靠左排列 */
+    gap: 0;
     width: 100%; /* 確保自身填滿父容器 */
+}
+.selectors-row.top-row {
+    gap: 52px; /* 只影響第一行  編輯區圓形按鈕*/
+}
+.selectors-row .edit-buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 20px;
+}
+.selectors-row .edit-buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
 }
 /*花色跟數字分隔線*/
 .separator {
@@ -726,7 +769,7 @@ body.table-zoom td.color-column .color-chip {
 /* 花色選擇器容器 */
 .suit-selector { 
   display: flex; 
-  gap: 16px; 
+  gap: 10px; 
   align-items: center; 
 }
 
@@ -789,7 +832,7 @@ body.table-zoom td.color-column .color-chip {
     min-width: 0; /* 搭配 flex: 1 使用，避免內容溢出 */
 }
 .rank-button {
-  --size: 100px; /* 我們保留這個變數作為最大寬度的參考 */
+  --size: 105px; /* 我們保留這個變數作為最大寬度的參考 */
   
   /* 讓按鈕有彈性 */
   flex: 1 1 80px; /* 👈 關鍵！flex-grow: 1, flex-shrink: 1, flex-basis: 80px */
@@ -863,8 +906,9 @@ body.table-zoom td.color-column .color-chip {
 }
 .rounds-table td.result-cell.outcome-tie,
 .rounds-table td.compare-cell.outcome-tie {
-  background: #e8f5e9;
+  background: #d4edda;
   color: #1b5e20;
+}
 
 /* =========================================================
    全局設定：和風浮世繪主題
@@ -903,7 +947,6 @@ body {
     margin: 0;
 }
 
-}
 /*==============================================================================================*/
 /*==============================================================================================================*/
 /* =========================================================
@@ -914,8 +957,12 @@ body {
     border: 1px solid var(--color-border-light);
     border-radius: 4px;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
-    padding: 16px;
+    padding: 0px;
     transition: all 0.3s ease;
+}
+.selection-container.second-row-card {
+    border: none;
+    box-shadow: none;
 }
 .selection-container:hover,
 .signal-card:hover {
@@ -966,7 +1013,6 @@ body {
 
 .rounds-table th {
     border: none;
-    border-bottom: 2px solid #3A342F;
     padding: 12px 8px;
     text-align: center;
     font-size: 16px;
@@ -981,7 +1027,7 @@ body {
 .rounds-table td {
     border: none;
     border-bottom: 1px solid #DCD3C8;
-    padding: 10px 8px;
+    padding: 4px 8px;
     text-align: center;
     font-size: 18px;
     background: transparent;
@@ -995,6 +1041,10 @@ body {
 .rounds-table td.color-column { 
     text-align: left; 
     padding-left: 12px; 
+}
+.rounds-table td.cards-column {
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 /* =========================================================
@@ -1012,25 +1062,9 @@ body {
 }
 
 /* --- 2. 特殊局高亮 (S局 / T局 / 兩對) --- */
-/* 放棄舊的亮色背景，改用更典雅的標記方式 */
-
-/* 兩對局 (two-pairs-round) */
-.rounds-table tr.two-pairs-round td {
-    background: rgba(212, 175, 55, 0.08); /* 淡淡的金色背景 */
-}
-.rounds-table tr.two-pairs-round td:first-child::before {
-    content: '對'; /* 在局數前用文字標記 */
-    color: #B59438;
-    font-weight: 600;
-    margin-right: 4px;
-}
-
-/* S局或T局 (s-signal-round) */
-.rounds-table tr.s-signal-round td.cards-column {
-    background: rgba(185, 64, 71, 0.07); /* 淡淡的朱紅色背景 */
-    box-shadow: inset 3px 0 0 #B94047; /* 左側出現一條朱紅色標記線 */
-}
-
+/* 只在前兩欄保留標記：左側深色線條、前兩欄最低限度顏色，其他欄位全清 */
+/* 兩對行在第一欄留下金色條（透過後續 nth-child 覆蓋） */
+/* S局行在第一欄留下朱紅條 */
 /* --- 3. 莊家6點勝 (banker-six-point) --- */
 /* 同樣放棄刺眼的粉色背景，改用標記 */
 .rounds-table td.banker-six-point {
@@ -1054,18 +1088,18 @@ body {
 /* 這些是顯示「莊/閒/和」結果的儲存格，需要保留清晰度 */
 .rounds-table td.result-cell.outcome-banker,
 .rounds-table td.compare-cell.outcome-banker {
-  background: rgba(185, 64, 71, 0.07); /* 淡朱紅背景 */
-  color: #B94047; /* 深朱紅文字 */
+  background: #fdecea;
+  color: #b71c1c;
 }
 .rounds-table td.result-cell.outcome-player,
 .rounds-table td.compare-cell.outcome-player {
-  background: rgba(46, 74, 98, 0.08); /* 淡靛藍背景 */
-  color: #2E4A62; /* 深靛藍文字 */
+  background: #e3f2fd;
+  color: #0d47a1;
 }
 .rounds-table td.result-cell.outcome-tie,
 .rounds-table td.compare-cell.outcome-tie {
-  background: rgba(181, 148, 56, 0.1); /* 淡金色背景 */
-  color: #B59438; /* 深金色文字 */
+  background: #d4edda;
+  color: #1b5e20;
 }
 
 /* --- 5. 卡牌與卡色標籤 (card-label, color-chip) --- */
@@ -1135,30 +1169,40 @@ body {
     background: #F8F3ED;
     border: 1px solid var(--color-border-light);
 }
-/* ... 其他 grid-preview 樣式可以保留，顏色會被覆蓋 ... */
-
 /* 切牌與圓餅圖卡片 */
-.cut-card, .circle-card {
+.cut-card {
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.10);
+    background: linear-gradient(180deg, var(--color-paper) 0%, #F0EAE4 100%);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+}
+.circle-card {
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.08);
 }
+
 .cut-controls .btn { /* 切牌按鈕 */
-    background: var(--color-accent-red);
-    color: white;
-    border: none;
-    border-radius: 6px;
+    background: transparent;
+    color: var(--color-ink-main);
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
     font-family: var(--font-main);
+    letter-spacing: 2px; /* 比較像寫在小紙籤上的字 */
 }
 .cut-controls .btn:hover {
-    background: #963338;
+    background: rgba(185, 64, 71, 0.10);
+    color: var(--color-accent-red);
 }
+
 .input-inline { /* 切牌輸入框 */
     background: #F0EAE4;
     color: var(--color-ink-main);
-    border-radius: 6px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border-light);
 }
 .input-inline input {
     color: var(--color-ink-main);
 }
+
 
 /* 圓餅圖 */
 .result-circle {
@@ -1167,10 +1211,96 @@ body {
 }
 .result-circle-center {
     background: var(--color-paper);
-    color: var(--color-accent-gold);
+    color: #3A342F;
     width: 48px;
     height: 48px;
     font-size: 24px;
+}
+
+/* === Ukiyo-e / 戰國風質感覆蓋 === */
+:root {
+    --ukiyo-background: #f3e7dc;
+    --ukiyo-ink-dark: #2a140c;
+    --ukiyo-paper: rgba(255, 255, 250, 0.95);
+    --ukiyo-border: rgba(38, 24, 12, 0.75);
+    --ukiyo-gold: #c47b1a;
+    --ukiyo-cloud: rgba(255, 249, 238, 0.8);
+    --ukiyo-wave: rgba(32, 20, 9, 0.08);
+    --font-jp: 'Sawarabi Mincho', 'Zen Antique', 'Noto Serif JP', serif;
+}
+
+body {
+    font-family: var(--font-jp);
+    color: var(--ukiyo-ink-dark);
+    background-color: var(--ukiyo-background);
+    background-image:
+        radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.5), transparent 45%),
+        radial-gradient(circle at 85% 8%, rgba(209, 124, 66, 0.25), transparent 40%),
+        linear-gradient(180deg, #fefcf7 0%, #eadbc7 50%, #d4c1af 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    margin: 0;
+    position: relative;
+    overflow-x: hidden;
+}
+
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+}
+
+body::before {
+    background-image:
+        radial-gradient(circle at 30% 70%, rgba(255, 230, 205, 0.5), transparent 40%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 20px);
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+}
+
+body::after {
+    background-image:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(196, 105, 60, 0.25), transparent 45%);
+    opacity: 0.4;
+    z-index: -1;
+}
+
+.container {
+    width: min(1800px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 24px 24px 40px;
+    background: var(--ukiyo-paper);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 26px;
+    box-shadow: 0 25px 45px rgba(26, 12, 5, 0.18);
+    position: relative;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.container::before,
+.container::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 18px;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.container::before {
+    border: 1px solid rgba(196, 123, 26, 0.25);
+    box-shadow: inset 0 0 40px rgba(223, 190, 146, 0.35);
+}
+
+.container::after {
+    inset: 6px;
+    background-image: radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.45), transparent 55%);
+    opacity: 0.65;
 }
 
 
@@ -1200,7 +1330,7 @@ body {
                 ① 新的第一行：花色選擇器 + 圓形工具按鈕
             ========================================================== -->
             <section class="selection-container signal-card signal-main">
-                <div class="selectors-row" style="justify-content: space-between; align-items: center;">
+                <div class="selectors-row top-row" style="justify-content: flex-start; align-items: center;">
                     
                     <!-- 左側：花色選擇 -->
                     <div class="suit-selector">
@@ -1224,8 +1354,8 @@ body {
                         <div class="tool-actions">
                             <button class="btn icon-btn" id="btnExportCombined" aria-label="導出 Excel" style="--icon-size: 120%;"><img src="suit/excel.png" alt="導出 Excel"></button>
                             <button class="btn icon-btn" id="btnPreview" aria-label="預覽" style="--icon-size: 180%;"><img src="suit/預覽.png" alt="預覽"></button>
-                            <button class="btn icon-btn" id="btnSpeech" aria-label="語音" style="--icon-size: 180%;"><img src="suit/語音.png" alt="語音"></button>
-                            <button class="btn icon-btn" id="btnApplyTools" aria-label="計算工具" style="--icon-size: 170%;"><img src="suit/計算.png" alt="計算工具"></button>
+                            <button class="btn icon-btn" id="btnSpeech" aria-label="語音" style="--icon-size: 170%;"><img src="suit/語音.png" alt="語音"></button>
+                            <button class="btn icon-btn" id="btnApplyTools" aria-label="計算工具" style="--icon-size: 150%;"><img src="suit/計算.png" alt="計算工具"></button>
                         </div>
                     </div>
                 </div>
@@ -1234,7 +1364,7 @@ body {
             <!-- =========================================================
                 ② 新的第二行：忍者/GO按鈕 + 數字牌卡選擇器
             ========================================================== -->
-            <section class="selection-container signal-card signal-main">
+            <section class="selection-container signal-card signal-main second-row-card">
                 <div class="selectors-row" style="justify-content: space-between; align-items: center;">
 
                     <!-- 左側：忍者/GO/清除按鈕 -->
@@ -1464,12 +1594,8 @@ body {
                     const ranks = Array.from(document.querySelectorAll('.rank-checkbox:checked')).map(cb => cb.value);
                     const totalCards = suits.length * ranks.length * 8;
                     const countElement = document.getElementById('signalCardCount');
-                    if (countElement) {
+            if (countElement) {
                         countElement.textContent = totalCards;
-                        if (totalCards === 0) countElement.style.color = '#dc3545';
-                        else if (totalCards <= 64) countElement.style.color = '#28a745';
-                        else if (totalCards <= 128) countElement.style.color = '#ffc107';
-                        else countElement.style.color = '#fd7e14';
                     }
                 }
             }
