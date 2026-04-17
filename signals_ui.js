@@ -2855,6 +2855,10 @@ function updateEditUI() {
     if (btnApply) {
         btnApply.disabled = !canModify;
     }
+    const btnAutoColor = document.getElementById('btnAutoColor');
+    if (btnAutoColor) {
+        btnAutoColor.disabled = !(Array.isArray(currentRounds) && currentRounds.length > 0);
+    }
     if (typeof document !== 'undefined' && document.body) {
         const zoomEnabled = canModify && EDIT_STATE.mode !== 'none';
         document.body.classList.toggle('table-zoom', zoomEnabled);
