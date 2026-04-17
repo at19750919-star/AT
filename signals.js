@@ -3807,10 +3807,20 @@ function runAutoColorSwap_Signal(rounds) {
         if (!force && (lockedFullRounds.has(ridx) || semiLockedRounds.has(ridx))) return false;
 
         const patterns = getCardColorPatterns();
-        const sortedPatterns = patterns
-            .map(p => ({ p, s: scoreRound(round, p) }))
-            .sort((a, b) => (b.s.match - a.s.match) || (a.s.deficit - b.s.deficit))
-            .map(x => x.p);
+        let sortedPatterns;
+        if (CARD_COLOR_MIXED_MODE) {
+            // 混和模式：隨機選 pattern，避免集中在 BBBR/RRRB
+            sortedPatterns = [...patterns];
+            for (let i = sortedPatterns.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [sortedPatterns[i], sortedPatterns[j]] = [sortedPatterns[j], sortedPatterns[i]];
+            }
+        } else {
+            sortedPatterns = patterns
+                .map(p => ({ p, s: scoreRound(round, p) }))
+                .sort((a, b) => (b.s.match - a.s.match) || (a.s.deficit - b.s.deficit))
+                .map(x => x.p);
+        }
 
         for (const pat of sortedPatterns) {
             if (solvePattern(ridx, pat, lockedFullRounds, semiLockedRounds, { rankStrict: force, sRoundSet, skipFullHouseCheck: force })) {

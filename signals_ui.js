@@ -1784,8 +1784,7 @@ if (typeof window !== 'undefined') {
             if (applyConfigBtn) applyConfigBtn.addEventListener('click', ui.applySignalConfig);
             initSwapPreviewToggle();
 
-        const autoBtn = document.getElementById('btnAutoColor');
-        if (autoBtn) autoBtn.addEventListener('click', ui.runAutoColorSwap);
+        // 換色按鈕由 setupViolationStatsListeners 處理（直接套用，不用預覽）
         const autoReorderBtn = document.getElementById('btnAutoReorder');
         if (autoReorderBtn) autoReorderBtn.addEventListener('click', () => {
             if (!editEnabled || !currentRounds || currentRounds.length === 0) {
