@@ -233,9 +233,50 @@ function sLog(message, type = 'info') {
 const ENABLE_PREFLIGHT_REGENERATE = false;
 
 const SIGNAL_STORAGE_KEY = 'signal_config';
+const CARD_COLOR_MIXED_STORAGE_KEY = 'card_color_mixed_mode';
 const VALID_SUITS = ['♠', '♥', '♦', '♣'];
 const VALID_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SIGNAL_DEFAULT_CONFIG = { suits: ['♠','♥','♦','♣'], ranks: ['A','2'] };
+
+function loadCardColorMixedMode() {
+    if (typeof window === 'undefined' || !window.localStorage) return true;
+    try {
+        const v = window.localStorage.getItem(CARD_COLOR_MIXED_STORAGE_KEY);
+        if (v === null) return true;
+        return v === '1';
+    } catch (e) {
+        return true;
+    }
+}
+
+let CARD_COLOR_MIXED_MODE = loadCardColorMixedMode();
+
+function persistCardColorMixedMode(enabled) {
+    CARD_COLOR_MIXED_MODE = !!enabled;
+    if (typeof window !== 'undefined') {
+        window.__cardColorMixedMode = CARD_COLOR_MIXED_MODE;
+        try {
+            if (window.localStorage) {
+                window.localStorage.setItem(CARD_COLOR_MIXED_STORAGE_KEY, CARD_COLOR_MIXED_MODE ? '1' : '0');
+            }
+        } catch (e) {
+            console.warn('Failed to persist mixed mode:', e);
+        }
+    }
+    return CARD_COLOR_MIXED_MODE;
+}
+
+function getCardColorPatterns() {
+    const base = [['B', 'B', 'B', 'R'], ['R', 'R', 'R', 'B']];
+    if (!CARD_COLOR_MIXED_MODE) return base;
+    return base.concat([['B', 'B', 'R', 'R'], ['R', 'R', 'B', 'B']]);
+}
+
+function getValidCardColorStrings() {
+    return CARD_COLOR_MIXED_MODE
+        ? new Set(['BBBR', 'RRRB', 'BBRR', 'RRBB'])
+        : new Set(['BBBR', 'RRRB']);
+}
 const SUIT_SYMBOL_TO_LETTER_MAP = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C', 'S': 'S', 'H': 'H', 'D': 'D', 'C': 'C' };
 const SUIT_LETTER_TO_SYMBOL_MAP = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const SIGNAL_RANKS_ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -3739,23 +3780,21 @@ function runAutoColorSwap_Signal(rounds) {
         if (!round || round.segment === 'B') return false;
         if (!force && (lockedFullRounds.has(ridx) || semiLockedRounds.has(ridx))) return false;
 
-        const pat1 = ['B', 'B', 'B', 'R'];
-        const pat2 = ['R', 'R', 'R', 'B'];
-        const s1 = scoreRound(round, pat1);
-        const s2 = scoreRound(round, pat2);
-        const first = (s1.match > s2.match || (s1.match === s2.match && s1.deficit < s2.deficit)) ? pat1 : s2.match > s1.match ? pat2 : pat1;
-        const second = (first === pat1) ? pat2 : pat1;
+        const patterns = getCardColorPatterns();
+        const sortedPatterns = patterns
+            .map(p => ({ p, s: scoreRound(round, p) }))
+            .sort((a, b) => (b.s.match - a.s.match) || (a.s.deficit - b.s.deficit))
+            .map(x => x.p);
 
-        if (
-            solvePattern(ridx, first, lockedFullRounds, semiLockedRounds, { rankStrict: force, sRoundSet, skipFullHouseCheck: force }) ||
-            solvePattern(ridx, second, lockedFullRounds, semiLockedRounds, { rankStrict: force, sRoundSet, skipFullHouseCheck: force })
-        ) {
-            if (force) {
-                lockedFullRounds.add(ridx);
-            } else {
-                semiLockedRounds.add(ridx);
+        for (const pat of sortedPatterns) {
+            if (solvePattern(ridx, pat, lockedFullRounds, semiLockedRounds, { rankStrict: force, sRoundSet, skipFullHouseCheck: force })) {
+                if (force) {
+                    lockedFullRounds.add(ridx);
+                } else {
+                    semiLockedRounds.add(ridx);
+                }
+                return true;
             }
-            return true;
         }
         return false;
     };
@@ -4936,6 +4975,68 @@ async function uploadToGoogleDrive(blob, filename) {
 }
 
 /**
+ * 顯示 Google Drive 檔案選擇器，回傳選中的檔案或 null
+ */
+function showDriveFilePicker(files) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;';
+
+        const panel = document.createElement('div');
+        panel.style.cssText = 'background:#1e1e1e;color:#eee;border-radius:8px;padding:16px;min-width:320px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,0.5);';
+
+        const title = document.createElement('div');
+        title.textContent = '選擇要載入的檔案';
+        title.style.cssText = 'font-size:16px;font-weight:bold;margin-bottom:12px;';
+        panel.appendChild(title);
+
+        const listWrap = document.createElement('div');
+        listWrap.style.cssText = 'flex:1;overflow-y:auto;margin-bottom:12px;border:1px solid #444;border-radius:4px;';
+
+        const sorted = [...files].sort((a, b) => {
+            const an = a.name.replace(/\.xlsx$/i, '');
+            const bn = b.name.replace(/\.xlsx$/i, '');
+            return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        sorted.forEach((file) => {
+            const btn = document.createElement('button');
+            const date = new Date(file.lastModified).toLocaleString('zh-TW');
+            btn.innerHTML = `<div style="font-weight:bold">${file.name}</div><div style="font-size:12px;color:#888">${date}</div>`;
+            btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 12px;background:transparent;color:#eee;border:none;border-bottom:1px solid #333;cursor:pointer;';
+            btn.addEventListener('mouseenter', () => btn.style.background = '#2a2a2a');
+            btn.addEventListener('mouseleave', () => btn.style.background = 'transparent');
+            btn.addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                resolve(file);
+            });
+            listWrap.appendChild(btn);
+        });
+
+        panel.appendChild(listWrap);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = 'align-self:flex-end;padding:6px 16px;background:#444;color:#eee;border:none;border-radius:4px;cursor:pointer;';
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(null);
+        });
+        panel.appendChild(cancelBtn);
+
+        overlay.appendChild(panel);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve(null);
+            }
+        });
+
+        document.body.appendChild(overlay);
+    });
+}
+
+/**
  * 從 Google Drive 載入檔案列表
  */
 async function loadFromGoogleDrive() {
@@ -5147,11 +5248,12 @@ function collectCardColorViolationRounds(rounds) {
         return violationRounds;
     }
 
+    const validSet = getValidCardColorStrings();
     for (let i = 0; i < rounds.length; i++) {
         const round = rounds[i];
         if (!round || !Array.isArray(round.cards) || round.cards.length < 4) continue;
         const colors = round.cards.slice(0, 4).map(c => (c && c.back_color) ? c.back_color : '?').join('');
-        if (colors !== 'BBBR' && colors !== 'RRRB') {
+        if (!validSet.has(colors)) {
             violationRounds.push(i + 1);
         }
     }

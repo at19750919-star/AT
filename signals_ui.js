@@ -2157,11 +2157,14 @@ if (colorBtn) {
             if (typeof collectCardColorViolationRounds === 'function') {
                 colorRounds = collectCardColorViolationRounds(currentRounds);
             } else {
+                const validSet = (typeof getValidCardColorStrings === 'function')
+                    ? getValidCardColorStrings()
+                    : new Set(['BBBR', 'RRRB']);
                 for (let i = 0; i < currentRounds.length; i++) {
                     const round = currentRounds[i];
                     if (!round || !Array.isArray(round.cards) || round.cards.length < 4) continue;
                     const colors = round.cards.slice(0, 4).map(c => c.back_color || '?').join('');
-                    if (colors !== 'BBBR' && colors !== 'RRRB') {
+                    if (!validSet.has(colors)) {
                         colorRounds.push(i + 1);
                     }
                 }

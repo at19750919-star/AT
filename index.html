@@ -272,6 +272,14 @@ body::after {
     text-shadow: var(--phosphor-glow);
 }
 [data-theme="light"] .signal-config-display { color: #333; text-shadow: none; }
+.mixed-color-toggle {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--phosphor);
+    cursor: pointer; user-select: none;
+    text-shadow: var(--phosphor-glow);
+}
+.mixed-color-toggle input { cursor: pointer; margin: 0; }
+[data-theme="light"] .mixed-color-toggle { color: #333; text-shadow: none; }
 .signal-count-card {
     position: relative; width: 72px; height: 72px;
     background: var(--bg-inset);
@@ -1059,6 +1067,10 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                     <span id="signalCardCount" class="signal-count-value">0</span>
                 </div>
                 <div id="signalConfigDisplay" class="signal-config-display"></div>
+                <label class="mixed-color-toggle" title="勾選後牌靴前4張卡色允許 BBBR / RRRB / BBRR / RRBB 四種">
+                    <input type="checkbox" id="mixedColorModeToggle">
+                    <span>混和卡色</span>
+                </label>
             </div>
 
             <!-- 訊號牌快速設定 -->
@@ -1419,12 +1431,33 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
             if (typeof updateViolationUI === 'function') {
                 updateViolationUI(null);
             }
+
+            // ===== 混和卡色模式勾選框 =====
+            const mixedToggle = document.getElementById('mixedColorModeToggle');
+            if (mixedToggle) {
+                if (typeof CARD_COLOR_MIXED_MODE !== 'undefined') {
+                    mixedToggle.checked = CARD_COLOR_MIXED_MODE;
+                }
+                mixedToggle.addEventListener('change', () => {
+                    if (typeof persistCardColorMixedMode === 'function') {
+                        persistCardColorMixedMode(mixedToggle.checked);
+                    }
+                    if (typeof log === 'function') {
+                        log(
+                            mixedToggle.checked
+                                ? '卡色模式：混和（BBBR / RRRB / BBRR / RRBB）'
+                                : '卡色模式：標準（BBBR / RRRB）',
+                            'info'
+                        );
+                    }
+                });
+            }
         });
     </script>
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
-    <script src="signals.js?v=7"></script>
-    <script src="signals_ui.js?v=7"></script>
+    <script src="signals.js?v=8"></script>
+    <script src="signals_ui.js?v=8"></script>
     <script src="smart_reorder_dialog.js"></script>
     <script src="swap_preview.js"></script>
     <script src="traverse.js"></script>
