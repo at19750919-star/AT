@@ -694,6 +694,15 @@ function shouldSkipSensitiveRound(round) {
         if (originalHandInfo.bankerTotal === 6 && originalHandInfo.playerTotal <= 5) {
             return true;
         }
+        // 檢查對調前兩張後是否為「莊6點贏」
+        if (Array.isArray(round.cards) && round.cards.length >= 4) {
+            const tmp = round.cards.map(c => c.clone());
+            [tmp[0], tmp[1]] = [tmp[1], tmp[0]];
+            const swappedInfo = computeRoundHands(tmp);
+            if (swappedInfo && swappedInfo.bankerTotal === 6 && swappedInfo.playerTotal <= 5) {
+                return true;
+            }
+        }
     }
 
     return false;
@@ -3279,9 +3288,17 @@ async function generateShoe() {
             }
 
             // 8. 對調莊6局數檢查
+            // 規則：避開莊6 勾選 或 局數 = 0 → 上限 0（禁止）；局數 > 0 → 下限；空白 → 不檢查
             const _swapB6Input = document.getElementById('swapBanker6Target');
-            const _swapB6Target = _swapB6Input && _swapB6Input.value !== '' ? parseInt(_swapB6Input.value) : 0;
-            if (_swapB6Target > 0) {
+            const _swapB6Raw = _swapB6Input ? _swapB6Input.value.trim() : '';
+            const _swapB6Target = _swapB6Raw !== '' ? parseInt(_swapB6Raw) : null;
+            const _skipB6El = document.getElementById('skipBanker6');
+            const _skipB6Checked = _skipB6El ? _skipB6El.checked : false;
+
+            const shouldProhibit = _skipB6Checked || _swapB6Target === 0;
+            const shouldEnforceMin = !shouldProhibit && _swapB6Target !== null && _swapB6Target > 0;
+
+            if (shouldProhibit || shouldEnforceMin) {
                 let _swapB6Count = 0;
                 for (const rd of roundsToCheck) {
                     if (!rd || !Array.isArray(rd.cards) || rd.cards.length < 4) continue;
@@ -3290,11 +3307,20 @@ async function generateShoe() {
                     const hi = computeRoundHands(tmp);
                     if (hi && hi.bankerTotal === 6 && hi.playerTotal <= 5) _swapB6Count++;
                 }
-                log(`🔍 對調莊6檢查：${_swapB6Count}/${_swapB6Target} 局`, 'info');
-                if (_swapB6Count < _swapB6Target) {
-                    log(`第 ${attempt} 次生成失敗：對調莊6 ${_swapB6Count} 局 < 目標 ${_swapB6Target}，重新生成...`, 'warn');
-                    result = null;
-                    continue;
+                if (shouldProhibit) {
+                    log(`🔍 對調莊6檢查：${_swapB6Count}/0 局（上限）`, 'info');
+                    if (_swapB6Count > 0) {
+                        log(`第 ${attempt} 次生成失敗：對調莊6 ${_swapB6Count} 局 > 上限 0，重新生成...`, 'warn');
+                        result = null;
+                        continue;
+                    }
+                } else {
+                    log(`🔍 對調莊6檢查：${_swapB6Count}/${_swapB6Target} 局（下限）`, 'info');
+                    if (_swapB6Count < _swapB6Target) {
+                        log(`第 ${attempt} 次生成失敗：對調莊6 ${_swapB6Count} 局 < 目標 ${_swapB6Target}，重新生成...`, 'warn');
+                        result = null;
+                        continue;
+                    }
                 }
             }
 
