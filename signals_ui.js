@@ -987,8 +987,17 @@ function pack_all_sensitive_and_segment(deck) {
 
     // 對調莊6局數目標：優先挑選對調後莊家6點贏的敏感局
     const swapB6Input = document.getElementById('swapBanker6Target');
-    const swapB6Target = swapB6Input && swapB6Input.value !== '' ? parseInt(swapB6Input.value) : 0;
+    const userSwapB6 = swapB6Input && swapB6Input.value !== '' ? parseInt(swapB6Input.value) : 0;
+
+    // 「對調莊6 = 和局×2」模式：用 maxTieLimit 當和局目標，對調莊6 = 2×和局
+    const tieB6El = document.getElementById('tieAfterBanker6');
+    const tieB6Enabled = tieB6El ? tieB6El.checked : false;
+    const tieLimitInput = document.getElementById('maxTieLimit');
+    const userTieLimit = tieLimitInput && tieLimitInput.value !== '' ? parseInt(tieLimitInput.value) : 0;
+    const tieTarget = tieB6Enabled && userTieLimit > 0 ? userTieLimit : 0;
+    const swapB6Target = tieB6Enabled ? tieTarget * 2 : userSwapB6;
     let swapB6Count = 0;
+    let pickedTieCount = 0;
 
     const isSwapBankerSix = (round) => {
         if (!round || !Array.isArray(round.cards) || round.cards.length < 4) return false;
@@ -998,6 +1007,25 @@ function pack_all_sensitive_and_segment(deck) {
         if (!info || typeof info.bankerTotal !== 'number' || typeof info.playerTotal !== 'number') return false;
         return info.bankerTotal === 6 && info.playerTotal <= 5;
     };
+
+    // 第零輪：和局×2 模式 → 先挑 N 個和局
+    if (tieTarget > 0) {
+        for (const r of all_sensitive) {
+            if (pickedTieCount >= tieTarget) break;
+            if (r.result !== '和') continue;
+            if (typeof shouldSkipSensitiveRound === 'function' && shouldSkipSensitiveRound(r)) continue;
+            if (r.cards.some(c => used_pos.has(c.pos))) continue;
+            if (max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit) continue;
+            r.segment = 'A';
+            a_rounds.push(r);
+            r.cards.forEach(c => used_pos.add(c.pos));
+            if (r.cards.length === 4) fourCardCount++;
+            if (is7PtReversal(r)) sevenPtReversalCount++;
+            if (isSwapBankerSix(r)) swapB6Count++;
+            pickedTieCount++;
+        }
+        log(`🔍 優先挑和局：找到 ${pickedTieCount}/${tieTarget} 局`, pickedTieCount >= tieTarget ? 'success' : 'warn');
+    }
 
     // 第一輪：優先挑選對調後莊家6點贏的敏感局
     if (swapB6Target > 0) {
@@ -1027,11 +1055,17 @@ function pack_all_sensitive_and_segment(deck) {
         if (r.cards.length === 4 && fourCardCount >= maxFourCardRounds) continue;
         // 七點逆轉已達上限就跳過
         if (max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit) continue;
+        // 和局×2 模式：和局已達目標，不再加入；對調莊6 已達目標，不再加入
+        if (tieB6Enabled) {
+            if (r.result === '和') continue;
+            if (isSwapBankerSix(r) && swapB6Count >= swapB6Target) continue;
+        }
         r.segment = 'A';
         a_rounds.push(r);
         r.cards.forEach(c => used_pos.add(c.pos));
         if (r.cards.length === 4) fourCardCount++;
         if (is7PtReversal(r)) sevenPtReversalCount++;
+        if (isSwapBankerSix(r)) swapB6Count++;
     }
     log(`🔍 自然敏感局加入完成：A段 ${a_rounds.length} 局(4張=${fourCardCount})，已用牌 ${used_pos.size} 張`, 'info');
     
@@ -1079,10 +1113,13 @@ function pack_all_sensitive_and_segment(deck) {
         
         const cands = multi_pass_candidates_from_cards_simple(remaining);
         // 4 張局已達上限就跳過，七點逆轉已達上限也跳過
+        // 和局×2 模式：和局/超量對調莊6 不再加入
         const isValidCandidate = (r) => Array.isArray(r.cards) && r.cards.length > 0
                 && !r.cards.some(c => used_pos.has(c.pos))
                 && !(r.cards.length === 4 && fourCardCount >= maxFourCardRounds)
-                && !(max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit);
+                && !(max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit)
+                && !(tieB6Enabled && r.result === '和')
+                && !(tieB6Enabled && isSwapBankerSix(r) && swapB6Count >= swapB6Target);
         // 優先挑選對調莊6的候選（如果目標未達成）
         let picked = null;
         if (Array.isArray(cands)) {

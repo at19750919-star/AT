@@ -562,8 +562,6 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
 .color-chip.blue { background: var(--cyan); box-shadow: 0 0 8px rgba(0,212,255,0.4); }
 .card-back-red  { background: rgba(255,59,59,0.18) !important; border-color: rgba(255,59,59,0.45) !important; }
 .card-back-blue { background: rgba(0,212,255,0.18) !important; border-color: rgba(0,212,255,0.45) !important; }
-.card-suit-spade { color: #b06aff !important; }
-[data-theme="light"] .card-suit-spade { color: #7b2fd6 !important; }
 
 /* ── 右側 ── */
 .right-sidebar { display: flex; flex-direction: column; gap: 12px; }
@@ -1123,6 +1121,10 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                     <input type="checkbox" id="skipBanker6">
                     <label for="skipBanker6" class="recovery-input-label" style="white-space:nowrap;">避開莊6點贏</label>
                 </div>
+                <div class="recovery-input-item" style="display:flex;align-items:center;gap:4px;">
+                    <input type="checkbox" id="tieAfterBanker6">
+                    <label for="tieAfterBanker6" class="recovery-input-label" style="white-space:nowrap;" title="整副牌對調莊6局數 = 和局數 × 2（不限位置）">對調莊6 = 和局×2</label>
+                </div>
             </div>
 
             <!-- 回復分析顯示區域 (取代原本的按鈕) -->
@@ -1456,8 +1458,8 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
     </script>
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
-    <script src="signals.js?v=11"></script>
-    <script src="signals_ui.js?v=11"></script>
+    <script src="signals.js?v=13"></script>
+    <script src="signals_ui.js?v=13"></script>
     <script src="smart_reorder_dialog.js"></script>
     <script src="swap_preview.js"></script>
     <script src="traverse.js"></script>

@@ -3324,6 +3324,41 @@ async function generateShoe() {
                 }
             }
 
+            // 9. 和局 × 2 對調莊6數量檢查（和局=maxTieLimit，對調莊6=2×和局；皆嚴格等於）
+            const _tieB6El = document.getElementById('tieAfterBanker6');
+            const _tieB6Checked = _tieB6El ? _tieB6El.checked : false;
+            if (_tieB6Checked) {
+                const MULTIPLIER = 2;
+                const _tieLimitInput = document.getElementById('maxTieLimit');
+                const _tieTargetCheck = _tieLimitInput && _tieLimitInput.value !== '' ? parseInt(_tieLimitInput.value) : 0;
+                const isSwapB6 = (rd) => {
+                    if (!rd || !Array.isArray(rd.cards) || rd.cards.length < 4) return false;
+                    const tmp = rd.cards.map(c => c.clone());
+                    [tmp[0], tmp[1]] = [tmp[1], tmp[0]];
+                    const hi = computeRoundHands(tmp);
+                    return hi && hi.bankerTotal === 6 && hi.playerTotal <= 5;
+                };
+                let tieCount = 0;
+                let swapB6Count = 0;
+                for (const rd of roundsToCheck) {
+                    if (!rd) continue;
+                    if (rd.result === '和') tieCount++;
+                    if (isSwapB6(rd)) swapB6Count++;
+                }
+                const required = tieCount * MULTIPLIER;
+                log(`🔍 和局×2 對調莊6：和局 ${tieCount}（目標 ${_tieTargetCheck}）→ 需對調莊6 ${required} 局，實際 ${swapB6Count} 局`, 'info');
+                if (_tieTargetCheck > 0 && tieCount !== _tieTargetCheck) {
+                    log(`第 ${attempt} 次生成失敗：和局 ${tieCount} ≠ 目標 ${_tieTargetCheck}，重新生成...`, 'warn');
+                    result = null;
+                    continue;
+                }
+                if (swapB6Count !== required) {
+                    log(`第 ${attempt} 次生成失敗：對調莊6 ${swapB6Count} ≠ 需求 ${required}（${tieCount}×${MULTIPLIER}），重新生成...`, 'warn');
+                    result = null;
+                    continue;
+                }
+            }
+
             // 通過所有檢查，確認使用此結果
             finalizedRounds = roundsToCheck;
         }
@@ -4699,7 +4734,7 @@ function computeRoundResult(cards) {
 /**
  * 智能處理殘牌 - 依序從後往前補牌
  * @param {Array} rounds - 已生成的局數陣列
- * @param {Array} remainingCards - C 段殘牌陣列
+https://github.com/at19750919-star/snow.git * @param {Array} remainingCards - C 段殘牌陣列
  * @returns {Array} 處理後的局數陣列
  */
 function distributeRemainingCards(rounds, remainingCards) {
