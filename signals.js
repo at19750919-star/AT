@@ -1980,7 +1980,8 @@ function preflightCheckMaxSideLimit(rounds, options = {}) {
     const fourCardStats = countFourCardRate(sourceRounds);
     const sideDiff = Math.abs(counts.banker - (counts.player + counts.tie));
     const okSide = (!sideLimit) || (sideDiff <= sideLimit);
-    const okTie = (!tieLimit) || (counts.tie <= tieLimit);
+    // 和局目標：剛好等於（不是上限）
+    const okTie = (!tieLimit) || (counts.tie === tieLimit);
     const okFourCard = (!fourCardRateLimit) || (fourCardStats.rate <= fourCardRateLimit);
     const ok = okSide && okTie && okFourCard;
 
@@ -3264,7 +3265,7 @@ async function generateShoe() {
                         log(`🔍 ⚠️ 莊閒差距超標（莊=${c.banker} vs 閒+和=${c.player + c.tie}，差距=${sideDiff} > ${preflightLimits.sideLimit}），重新生成...`, 'warn');
                     }
                     if (!preflightLimits.okTie && preflightLimits.tieLimit) {
-                        log(`🔍 ⚠️ 和局超過上限（和=${c.tie} > ${preflightLimits.tieLimit}），重新生成...`, 'warn');
+                        log(`🔍 ⚠️ 和局數不符（和=${c.tie} ≠ ${preflightLimits.tieLimit}），重新生成...`, 'warn');
                     }
                     if (!preflightLimits.okFourCard && preflightLimits.fourCardRateLimit) {
                         log(`🔍 ⚠️ 4張局比例超過上限（${four.rate.toFixed(1)}% > ${preflightLimits.fourCardRateLimit}%），重新生成...`, 'warn');
@@ -3315,9 +3316,9 @@ async function generateShoe() {
                         continue;
                     }
                 } else {
-                    log(`🔍 對調莊6檢查：${_swapB6Count}/${_swapB6Target} 局（下限）`, 'info');
-                    if (_swapB6Count < _swapB6Target) {
-                        log(`第 ${attempt} 次生成失敗：對調莊6 ${_swapB6Count} 局 < 目標 ${_swapB6Target}，重新生成...`, 'warn');
+                    log(`🔍 對調莊6檢查：${_swapB6Count}/${_swapB6Target} 局（剛好）`, 'info');
+                    if (_swapB6Count !== _swapB6Target) {
+                        log(`第 ${attempt} 次生成失敗：對調莊6 ${_swapB6Count} 局 ≠ 目標 ${_swapB6Target}，重新生成...`, 'warn');
                         result = null;
                         continue;
                     }

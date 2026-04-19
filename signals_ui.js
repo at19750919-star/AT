@@ -989,12 +989,13 @@ function pack_all_sensitive_and_segment(deck) {
     const swapB6Input = document.getElementById('swapBanker6Target');
     const userSwapB6 = swapB6Input && swapB6Input.value !== '' ? parseInt(swapB6Input.value) : 0;
 
-    // 「對調莊6 = 和局×2」模式：用 maxTieLimit 當和局目標，對調莊6 = 2×和局
+    // 和局目標：maxTieLimit 直接當「剛好 N 局和」目標（不勾 checkbox 時也適用）
+    // 勾選「對調莊6 = 和局×2」時，對調莊6 強制為 2×和局
     const tieB6El = document.getElementById('tieAfterBanker6');
     const tieB6Enabled = tieB6El ? tieB6El.checked : false;
     const tieLimitInput = document.getElementById('maxTieLimit');
     const userTieLimit = tieLimitInput && tieLimitInput.value !== '' ? parseInt(tieLimitInput.value) : 0;
-    const tieTarget = tieB6Enabled && userTieLimit > 0 ? userTieLimit : 0;
+    const tieTarget = userTieLimit > 0 ? userTieLimit : 0;
     const swapB6Target = tieB6Enabled ? tieTarget * 2 : userSwapB6;
     let swapB6Count = 0;
     let pickedTieCount = 0;
@@ -1055,17 +1056,16 @@ function pack_all_sensitive_and_segment(deck) {
         if (r.cards.length === 4 && fourCardCount >= maxFourCardRounds) continue;
         // 七點逆轉已達上限就跳過
         if (max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit) continue;
-        // 和局×2 模式：和局已達目標，不再加入；對調莊6 已達目標，不再加入
-        if (tieB6Enabled) {
-            if (r.result === '和') continue;
-            if (isSwapBankerSix(r) && swapB6Count >= swapB6Target) continue;
-        }
+        // 和局/對調莊6 達目標就不再加入（只要有設目標即生效）
+        if (tieTarget > 0 && r.result === '和' && pickedTieCount >= tieTarget) continue;
+        if (swapB6Target > 0 && isSwapBankerSix(r) && swapB6Count >= swapB6Target) continue;
         r.segment = 'A';
         a_rounds.push(r);
         r.cards.forEach(c => used_pos.add(c.pos));
         if (r.cards.length === 4) fourCardCount++;
         if (is7PtReversal(r)) sevenPtReversalCount++;
         if (isSwapBankerSix(r)) swapB6Count++;
+        if (r.result === '和') pickedTieCount++;
     }
     log(`🔍 自然敏感局加入完成：A段 ${a_rounds.length} 局(4張=${fourCardCount})，已用牌 ${used_pos.size} 張`, 'info');
     
@@ -1099,12 +1099,16 @@ function pack_all_sensitive_and_segment(deck) {
                     if (max7PtLimit !== null && is7PtReversal(finalRound) && sevenPtReversalCount >= max7PtLimit) {
                         return null;
                     }
+                    // 和局/對調莊6 達目標就不再加入
+                    if (tieTarget > 0 && finalRound.result === '和' && pickedTieCount >= tieTarget) return null;
+                    if (swapB6Target > 0 && isSwapBankerSix(finalRound) && swapB6Count >= swapB6Target) return null;
                     finalRound.segment = 'A';
                     a_rounds.push(finalRound);
                     orderedOriginalCards.forEach(card => used_pos.add(card.pos));
                     if (last.cards.length === 4) fourCardCount++;
                     if (is7PtReversal(finalRound)) sevenPtReversalCount++;
                     if (isSwapBankerSix(finalRound)) swapB6Count++;
+                    if (finalRound.result === '和') pickedTieCount++;
                     break;
                 }
             }
@@ -1113,13 +1117,13 @@ function pack_all_sensitive_and_segment(deck) {
         
         const cands = multi_pass_candidates_from_cards_simple(remaining);
         // 4 張局已達上限就跳過，七點逆轉已達上限也跳過
-        // 和局×2 模式：和局/超量對調莊6 不再加入
+        // 和局/對調莊6 達目標就不再加入
         const isValidCandidate = (r) => Array.isArray(r.cards) && r.cards.length > 0
                 && !r.cards.some(c => used_pos.has(c.pos))
                 && !(r.cards.length === 4 && fourCardCount >= maxFourCardRounds)
                 && !(max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit)
-                && !(tieB6Enabled && r.result === '和')
-                && !(tieB6Enabled && isSwapBankerSix(r) && swapB6Count >= swapB6Target);
+                && !(tieTarget > 0 && r.result === '和' && pickedTieCount >= tieTarget)
+                && !(swapB6Target > 0 && isSwapBankerSix(r) && swapB6Count >= swapB6Target);
         // 優先挑選對調莊6的候選（如果目標未達成）
         let picked = null;
         if (Array.isArray(cands)) {
@@ -1152,6 +1156,7 @@ function pack_all_sensitive_and_segment(deck) {
         if (picked.cards.length === 4) fourCardCount++;
         if (is7PtReversal(picked)) sevenPtReversalCount++;
         if (isSwapBankerSix(picked)) swapB6Count++;
+        if (picked.result === '和') pickedTieCount++;
             added++;
     }
         if (added > 0) {

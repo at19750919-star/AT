@@ -1099,7 +1099,7 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                         placeholder="空白=不檢查">
                 </div>
                 <div class="recovery-input-item">
-                    <label class="recovery-input-label">和局上限</label>
+                    <label class="recovery-input-label">和局數</label>
                     <input type="number" id="maxTieLimit" class="recovery-input" min="0" value="2" placeholder="空白=不檢查">
                 </div>
                 <div class="recovery-input-item">
@@ -1115,7 +1115,7 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                 <div class="recovery-input-item">
                     <label class="recovery-input-label">對調莊6局數</label>
                     <input type="number" id="swapBanker6Target" class="recovery-input" min="0" value="10"
-                        placeholder="0=禁止，空白=不檢查">
+                        placeholder="剛好=N，0=禁止，空白=不檢查">
                 </div>
                 <div class="recovery-input-item" style="display:flex;align-items:center;gap:4px;">
                     <input type="checkbox" id="skipBanker6">
@@ -1458,8 +1458,8 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
     </script>
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
-    <script src="signals.js?v=13"></script>
-    <script src="signals_ui.js?v=13"></script>
+    <script src="signals.js?v=14"></script>
+    <script src="signals_ui.js?v=14"></script>
     <script src="smart_reorder_dialog.js"></script>
     <script src="swap_preview.js"></script>
     <script src="traverse.js"></script>
