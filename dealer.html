@@ -4,93 +4,284 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>百家樂發牌模擬器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Azeret+Mono:wght@300..700&display=swap" rel="stylesheet">
 <style>
+/* ── Design Tokens ── */
+:root {
+  /* Surfaces */
+  --bg-0: #07090d;
+  --bg-1: #0d1117;
+  --bg-2: #141a22;
+  --bg-3: #1a2030;
+  --panel: #0e131b;
+  --panel-hi: #161d27;
+
+  /* Borders */
+  --bd-0: #1a2030;
+  --bd-1: #242c3b;
+  --bd-2: #2f3a4d;
+
+  /* Text */
+  --tx-0: #eef0f5;
+  --tx-1: #b8bfcc;
+  --tx-2: #7a8496;
+  --tx-3: #4e5668;
+
+  /* Accents (交易員訓練終端) */
+  --lime: #c6ff3d;            /* 主強調 — 偏綠螢光的琥珀 */
+  --lime-dim: #7a9f26;
+  --lime-glow: rgba(198,255,61,0.32);
+  --cyan: #5ab2ff;             /* 次強調 */
+  --cyan-dim: #2f6fa8;
+  --amber: #ffb648;
+
+  /* Semantic */
+  --banker: #ff4560;
+  --banker-soft: rgba(255,69,96,0.14);
+  --player: #3b82f6;
+  --player-soft: rgba(59,130,246,0.14);
+  --tie: #10b981;
+  --tie-soft: rgba(16,185,129,0.14);
+  --win: #c6ff3d;
+  --loss: #ff4560;
+
+  /* Typography */
+  --font-display: 'Bricolage Grotesque', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --font-mono: 'Azeret Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --font-cjk: 'PingFang TC', 'Microsoft JhengHei', var(--font-display);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
 body {
-  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
-  background: #0a1628;
-  color: #e0e0e0;
+  font-family: var(--font-cjk);
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(90,178,255,0.06) 0%, transparent 60%),
+    radial-gradient(1000px 500px at 95% 110%, rgba(198,255,61,0.04) 0%, transparent 60%),
+    var(--bg-0);
+  color: var(--tx-0);
   min-height: 100vh;
   overflow-x: hidden;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  letter-spacing: 0.005em;
 }
 
 /* ── Header ── */
 .header {
-  background: linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%);
-  padding: 12px 24px;
+  background: var(--bg-1);
+  padding: 10px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 2px solid #2a4a6a;
+  border-bottom: 1px solid var(--bd-1);
+  position: relative;
 }
-.header h1 { font-size: 20px; color: #ffd700; letter-spacing: 2px; }
-.header .shoe-info { font-size: 14px; color: #8ab4f8; }
+.header::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--lime) 50%, transparent 100%);
+  opacity: 0.35;
+}
+.header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  font-variation-settings: "opsz" 32, "wdth" 100;
+  color: var(--tx-0);
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.header h1::before {
+  content: '●';
+  font-size: 10px;
+  color: var(--lime);
+  filter: drop-shadow(0 0 6px var(--lime-glow));
+  animation: livePulse 2.4s ease-in-out infinite;
+  transform: translateY(-3px);
+}
+.header h1::after {
+  content: 'LIVE';
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--lime);
+  padding: 2px 6px;
+  border: 1px solid var(--lime-dim);
+  border-radius: 3px;
+  transform: translateY(-2px);
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.header .shoe-info {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tx-2);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Control Bar ── */
 .controls {
   display: flex;
-  gap: 8px;
-  padding: 10px 24px;
-  background: #0f1f35;
+  gap: 6px 8px;
+  padding: 10px 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.012), rgba(0,0,0,0) 40%),
+    var(--panel);
+  border: 1px solid var(--bd-1);
+  border-radius: 10px;
   flex-wrap: wrap;
   align-items: center;
-  border-bottom: 1px solid #1a3050;
+  position: relative;
+}
+.controls::before {
+  content: '';
+  position: absolute;
+  left: 12px; right: 12px; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bd-2) 30%, var(--bd-2) 70%, transparent);
+  opacity: 0.55;
+}
+.controls::after {
+  content: '';
+  position: absolute;
+  left: 14px; top: 10px;
+  width: 4px; height: 4px;
+  background: var(--lime);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--lime-glow);
+  opacity: 0.75;
 }
 .controls .group {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
+  flex-wrap: wrap;
+  padding: 2px 6px 2px 0;
+  position: relative;
 }
-.controls .group::after {
-  content: '';
-  width: 1px;
-  height: 28px;
-  background: #2a4a6a;
-  margin: 0 6px;
+.controls .group + .group {
+  padding-left: 8px;
+  border-left: 1px solid var(--bd-1);
 }
-.controls .group:last-child::after { display: none; }
 
 .btn {
-  padding: 5px 14px;
-  border: 1px solid #3a5a7a;
-  border-radius: 6px;
-  background: #1a2a4a;
-  color: #e0e0e0;
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: 13px;
+  letter-spacing: 0.015em;
+  padding: 6px 14px;
+  border: 1px solid var(--bd-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--tx-0);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 160ms var(--ease-out),
+              border-color 160ms var(--ease-out),
+              color 160ms var(--ease-out),
+              box-shadow 160ms var(--ease-out),
+              transform 80ms var(--ease-out);
   white-space: nowrap;
+  position: relative;
+  line-height: 1.3;
 }
-.btn:hover { background: #2a4a6a; border-color: #5a8abf; }
-.btn:active { transform: scale(0.96); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn.primary { background: #2d6a4f; border-color: #4a9a7a; color: #fff; }
-.btn.primary:hover { background: #3a8a6a; }
-.btn.danger { background: #8b2c2c; border-color: #b04040; }
-.btn.danger:hover { background: #a03535; }
-.btn.accent { background: #6a4c2d; border-color: #9a7a4a; color: #ffd700; }
-.btn.accent:hover { background: #8a6a3a; }
-.btn.swap-active { background: #b8860b; border-color: #ffd700; color: #fff; box-shadow: 0 0 12px rgba(255,215,0,0.6), 0 0 4px rgba(255,215,0,0.4) inset; text-shadow: 0 0 6px rgba(255,215,0,0.8); animation: swapPulse 1s ease-in-out infinite; }
-@keyframes swapPulse { 0%,100% { box-shadow: 0 0 12px rgba(255,215,0,0.6), 0 0 4px rgba(255,215,0,0.4) inset; } 50% { box-shadow: 0 0 20px rgba(255,215,0,0.9), 0 0 6px rgba(255,215,0,0.6) inset; } }
+.btn:hover {
+  background: var(--bg-3);
+  border-color: var(--tx-2);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.02);
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: saturate(0.4);
+}
+
+/* 主行動：螢光檸檬填色，近黑文字 */
+.btn.primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0a0e05;
+  font-weight: 700;
+}
+.btn.primary:hover {
+  background: #d4ff5c;
+  border-color: #d4ff5c;
+  box-shadow: 0 0 0 3px var(--lime-glow);
+}
+
+/* 次行動：透明底 + 檸檬描邊 */
+.btn.accent {
+  background: transparent;
+  border-color: var(--lime-dim);
+  color: var(--lime);
+}
+.btn.accent:hover {
+  background: rgba(198,255,61,0.06);
+  border-color: var(--lime);
+  box-shadow: 0 0 0 3px var(--lime-glow);
+}
+
+/* 破壞性：紅邊透明底 */
+.btn.danger {
+  background: transparent;
+  border-color: rgba(255,69,96,0.5);
+  color: var(--banker);
+}
+.btn.danger:hover {
+  background: rgba(255,69,96,0.08);
+  border-color: var(--banker);
+  box-shadow: 0 0 0 3px rgba(255,69,96,0.15);
+}
+
+/* Swap 跳張發：脈動強調 */
+.btn.swap-active {
+  background: rgba(255,182,72,0.12);
+  border-color: var(--amber);
+  color: var(--amber);
+  animation: swapPulse 1.3s var(--ease-in-out) infinite;
+}
+@keyframes swapPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,182,72,0.45), 0 0 12px rgba(255,182,72,0.3); }
+  50%      { box-shadow: 0 0 0 4px rgba(255,182,72,0.05), 0 0 20px rgba(255,182,72,0.55); }
+}
 
 input[type="file"] { display: none; }
 input[type="number"], select {
-  padding: 4px 8px;
-  border: 1px solid #3a5a7a;
-  border-radius: 4px;
-  background: #0a1628;
-  color: #e0e0e0;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--bd-2);
+  border-radius: 5px;
+  background: var(--bg-1);
+  color: var(--tx-0);
+  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out);
 }
-input[type="number"] { width: 70px; text-align: center; }
+input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--lime-dim);
+  background: var(--bg-2);
+}
+input[type="number"] { width: 76px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ── Main Layout ── */
 .main {
   display: flex;
-  gap: 12px;
-  padding: 12px 20px;
-  height: calc(100vh - 115px);
+  gap: 14px;
+  padding: 14px 20px;
+  height: calc(100vh - 55px);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -107,41 +298,78 @@ input[type="number"] { width: 70px; text-align: center; }
 
 /* ── Baccarat Table ── */
 .bac-table {
-  background: linear-gradient(145deg, #1a3322 0%, #0f2618 100%);
-  border: 3px solid #2a5a3a;
-  border-radius: 16px;
-  padding: 20px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 50%, rgba(20,60,50,0.55) 0%, rgba(6,14,12,0.9) 70%),
+    linear-gradient(180deg, #0c1612 0%, #070d0a 100%);
+  border: 1px solid var(--bd-1);
+  border-radius: 14px;
+  padding: 22px;
   display: flex;
-  gap: 30px;
+  gap: 34px;
   justify-content: center;
   align-items: flex-start;
   min-height: 240px;
   position: relative;
+  overflow: hidden;
 }
+/* 細網格紋 */
 .bac-table::before {
   content: '';
   position: absolute;
-  inset: 4px;
-  border: 1px solid rgba(255,215,0,0.12);
-  border-radius: 12px;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(198,255,61,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(198,255,61,0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 30%, transparent 80%);
   pointer-events: none;
+}
+/* 角標 corner marks — 終端機風 */
+.bac-table::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left top/14px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left top/1px 14px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right top/14px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right top/1px 14px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left bottom/14px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left bottom/1px 14px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right bottom/14px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right bottom/1px 14px no-repeat;
+  opacity: 0.45;
 }
 
 .side-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 220px;
+  position: relative;
+  z-index: 1;
 }
 .side-label {
-  font-size: 16px;
-  font-weight: bold;
-  letter-spacing: 4px;
-  padding: 3px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  padding: 3px 14px 5px;
+  text-transform: uppercase;
+  position: relative;
 }
-.side-label.player { color: #4a9af5; border-bottom: 2px solid #4a9af5; }
-.side-label.banker { color: #e04040; border-bottom: 2px solid #e04040; }
+.side-label::after {
+  content: '';
+  position: absolute;
+  left: 10%; right: 10%; bottom: 0; height: 1px;
+}
+.side-label.player { color: var(--player); }
+.side-label.player::after { background: linear-gradient(90deg, transparent, var(--player), transparent); box-shadow: 0 0 8px rgba(59,130,246,0.5); }
+.side-label.banker { color: var(--banker); }
+.side-label.banker::after { background: linear-gradient(90deg, transparent, var(--banker), transparent); box-shadow: 0 0 8px rgba(255,69,96,0.5); }
 
 .card-slots {
   display: flex;
@@ -151,12 +379,17 @@ input[type="number"] { width: 70px; text-align: center; }
 }
 
 .point-display {
-  font-size: 32px;
-  font-weight: bold;
-  min-height: 38px;
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 600;
+  min-height: 40px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  transition: color 200ms var(--ease-out), text-shadow 200ms var(--ease-out);
 }
-.point-display.player { color: #4a9af5; }
-.point-display.banker { color: #e04040; }
+.point-display.player { color: var(--player); text-shadow: 0 0 16px rgba(59,130,246,0.35); }
+.point-display.banker { color: var(--banker); text-shadow: 0 0 16px rgba(255,69,96,0.35); }
 
 /* ── Result ── */
 .result-zone {
@@ -164,115 +397,168 @@ input[type="number"] { width: 70px; text-align: center; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 90px;
+  gap: 10px;
+  min-width: 96px;
+  position: relative;
+  z-index: 1;
 }
 .result-badge {
+  font-family: var(--font-display);
   font-size: 24px;
-  font-weight: bold;
-  padding: 6px 16px;
-  border-radius: 8px;
-  min-height: 42px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 8px 18px;
+  border-radius: 4px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transform: scale(0.92);
+  transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out);
+  position: relative;
+  backdrop-filter: blur(4px);
 }
-.result-badge.show { opacity: 1; }
-.result-badge.banker-win { background: rgba(224,64,64,0.2); color: #ff6666; border: 2px solid #e04040; }
-.result-badge.player-win { background: rgba(74,154,245,0.2); color: #7abfff; border: 2px solid #4a9af5; }
-.result-badge.tie-win { background: rgba(46,139,87,0.2); color: #5ae08a; border: 2px solid #2e8b57; }
-.round-counter { font-size: 13px; color: #8ab4f8; }
+.result-badge.show { opacity: 1; transform: scale(1); }
+.result-badge::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  opacity: 0.25;
+  pointer-events: none;
+}
+.result-badge.banker-win { background: var(--banker-soft); color: var(--banker); border: 1px solid var(--banker); }
+.result-badge.player-win { background: var(--player-soft); color: var(--player); border: 1px solid var(--player); }
+.result-badge.tie-win    { background: var(--tie-soft);    color: var(--tie);    border: 1px solid var(--tie); }
+
+.round-counter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tx-2);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
 /* ── Playing Card ── */
 .card {
   width: 80px;
   height: 115px;
-  border-radius: 8px;
+  border-radius: 6px;
   position: relative;
-  perspective: 600px;
+  perspective: 700px;
 }
 .card-inner {
   width: 100%;
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.45s;
+  transition: transform 0.45s var(--ease-out);
 }
 .card.flipped .card-inner { transform: rotateY(180deg); }
 
 .card-face {
   position: absolute;
   inset: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   backface-visibility: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.08) inset,
+    0 6px 14px rgba(0,0,0,0.45);
 }
 
 .card-back {
   background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.06) 4px, rgba(255,255,255,0.06) 8px);
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.22);
 }
-.card-back.red-back { background-color: #b22222; }
-.card-back.blue-back { background-color: #1a4a8a; }
+.card-back.red-back  { background-color: #9b1c2c; }
+.card-back.blue-back { background-color: #17407a; }
 
 .card-front {
-  background: #fff;
-  color: #333;
+  background: #f5f5f2;
+  color: #202020;
   transform: rotateY(180deg);
-  border: 1px solid #ccc;
+  border: 1px solid rgba(0,0,0,0.15);
   padding: 4px;
 }
-.card-front .center-suit { font-size: 42px; line-height: 1; }
-.card-front.red-suit { color: #cc0000; }
-.card-front.black-suit { color: #222; }
+.card-front .center-suit { font-size: 42px; line-height: 1; font-family: var(--font-display); font-weight: 700; }
+.card-front.red-suit   { color: #c62938; }
+.card-front.black-suit { color: #1a1a1a; }
 
 .card-front .corner-tl, .card-front .corner-br {
   position: absolute;
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: bold;
-  line-height: 1.15;
+  font-weight: 700;
+  line-height: 1.1;
   text-align: center;
+  letter-spacing: -0.02em;
 }
 .card-front .corner-tl { top: 4px; left: 5px; }
 .card-front .corner-br { bottom: 4px; right: 5px; transform: rotate(180deg); }
 .card-front .corner-suit { font-size: 14px; }
 
-.card.dealing { animation: dealIn 0.35s ease-out; }
+.card.dealing { animation: dealIn 0.38s var(--ease-out); }
 @keyframes dealIn {
-  from { opacity: 0; transform: translateY(-30px) scale(0.75); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-28px) scale(0.8) rotateZ(-3deg); }
+  to   { opacity: 1; transform: translateY(0) scale(1) rotateZ(0); }
 }
 
 /* ── Right Column: Road + History ── */
 .right-col {
-  width: 340px;
+  width: 360px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
 }
 
-/* ── Road Map (大路) ── */
-.road-panel {
-  background: #0f1f35;
-  border: 1px solid #1a3050;
-  border-radius: 8px;
+/* 通用面板：統一右欄質感 */
+.road-panel,
+.history-panel,
+.shoe-strip {
+  background: var(--panel);
+  border: 1px solid var(--bd-1);
+  border-radius: 10px;
   overflow: hidden;
+  position: relative;
 }
-.road-header {
-  padding: 6px 12px;
-  background: #1a2a4a;
-  font-weight: bold;
-  font-size: 13px;
-  color: #ffd700;
+
+/* 面板 header：hairline + 單色小標題 */
+.road-header,
+.history-header {
+  padding: 7px 12px 7px 14px;
+  background: var(--bg-1);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--tx-1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--bd-0);
+  position: relative;
 }
+.road-header::before,
+.history-header::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 25%; bottom: 25%;
+  width: 2px;
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime-glow);
+}
+
+/* ── Road Map (大路 / 珠盤) ── */
 .road-canvas {
-  padding: 6px;
+  padding: 8px;
   overflow: auto;
   max-height: 180px;
 }
@@ -281,7 +567,7 @@ input[type="number"] { width: 70px; text-align: center; }
   grid-template-rows: repeat(6, 22px);
   grid-auto-columns: 22px;
   grid-auto-flow: column;
-  gap: 1px;
+  gap: 2px;
 }
 .road-cell {
   width: 22px;
@@ -290,16 +576,17 @@ input[type="number"] { width: 70px; text-align: center; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: bold;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
 }
-.road-cell.banker { background: #cc3333; color: #fff; }
-.road-cell.player { background: #3366cc; color: #fff; }
-.road-cell.tie { background: #2e8b57; color: #fff; }
+.road-cell.banker { background: var(--banker); color: #fff; box-shadow: 0 0 6px rgba(255,69,96,0.35); }
+.road-cell.player { background: var(--player); color: #fff; box-shadow: 0 0 6px rgba(59,130,246,0.35); }
+.road-cell.tie    { background: var(--tie);    color: #fff; box-shadow: 0 0 6px rgba(16,185,129,0.35); }
 
 /* ── Bead Road (珠盤路) ── */
 .bead-canvas {
-  padding: 6px;
+  padding: 8px;
   overflow: auto;
   max-height: 130px;
 }
@@ -317,33 +604,21 @@ input[type="number"] { width: 70px; text-align: center; }
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-mono);
   font-size: 9px;
-  font-weight: bold;
-  border: 1px solid rgba(255,255,255,0.1);
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.08);
 }
-.bead-cell.banker { background: #cc3333; color: #fff; }
-.bead-cell.player { background: #3366cc; color: #fff; }
-.bead-cell.tie { background: #2e8b57; color: #fff; }
+.bead-cell.banker { background: var(--banker); color: #fff; }
+.bead-cell.player { background: var(--player); color: #fff; }
+.bead-cell.tie    { background: var(--tie);    color: #fff; }
 
 /* ── History Panel ── */
 .history-panel {
   flex: 1;
-  background: #0f1f35;
-  border: 1px solid #1a3050;
-  border-radius: 8px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
-}
-.history-header {
-  padding: 6px 12px;
-  background: #1a2a4a;
-  font-weight: bold;
-  font-size: 13px;
-  color: #ffd700;
-  display: flex;
-  justify-content: space-between;
 }
 .history-body {
   overflow-y: auto;
@@ -353,35 +628,52 @@ input[type="number"] { width: 70px; text-align: center; }
 .history-row {
   display: flex;
   align-items: center;
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 3px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-family: 'Consolas', monospace;
-  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  gap: 6px;
+  transition: background 120ms var(--ease-out);
 }
-.history-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
-.history-row .h-num { color: #888; width: 28px; text-align: right; }
-.history-row .h-cards { flex: 1; letter-spacing: 0.5px; }
-.history-row .h-result { font-weight: bold; width: 20px; text-align: center; }
-.history-row .h-result.banker { color: #e04040; }
-.history-row .h-result.player { color: #4a9af5; }
-.history-row .h-result.tie { color: #2e8b57; }
-.history-row .h-pts { color: #aaa; width: 42px; text-align: center; }
-.history-row.active { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); }
+.history-row:nth-child(odd) { background: rgba(255,255,255,0.015); }
+.history-row:hover          { background: rgba(198,255,61,0.04); }
+.history-row .h-num { color: var(--tx-3); width: 30px; text-align: right; }
+.history-row .h-cards { flex: 1; letter-spacing: 0.02em; color: var(--tx-1); }
+.history-row .h-result { font-weight: 700; width: 20px; text-align: center; }
+.history-row .h-result.banker { color: var(--banker); }
+.history-row .h-result.player { color: var(--player); }
+.history-row .h-result.tie    { color: var(--tie); }
+.history-row .h-pts { color: var(--tx-2); width: 42px; text-align: center; }
+.history-row.active {
+  background: rgba(198,255,61,0.08);
+  box-shadow: inset 2px 0 0 var(--lime);
+}
 
 /* ── Shoe Strip ── */
 .shoe-strip {
-  background: #0f1f35;
-  border: 1px solid #1a3050;
-  border-radius: 8px;
-  padding: 8px 12px;
+  padding: 10px 14px 12px;
 }
 .shoe-strip-header {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: #8ab4f8;
-  margin-bottom: 4px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--tx-2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.shoe-strip-header > span:first-child {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+}
+.shoe-strip-header > span:last-child {
+  color: var(--lime);
+  font-weight: 500;
 }
 .shoe-cards {
   display: flex;
@@ -390,32 +682,48 @@ input[type="number"] { width: 70px; text-align: center; }
 }
 .shoe-card-dot {
   width: 5px;
-  height: 8px;
+  height: 10px;
   border-radius: 1px;
-  opacity: 0.7;
+  opacity: 0.75;
+  transition: opacity 120ms var(--ease-out);
 }
-.shoe-card-dot.red { background: #cc4444; }
-.shoe-card-dot.blue { background: #4477cc; }
-.shoe-card-dot.used { opacity: 0.15; }
-.shoe-card-dot.cut-marker { background: #ffd700; opacity: 1; width: 3px; }
-.shoe-card-dot.start-marker { background: #00ff88; opacity: 1; width: 3px; }
+.shoe-card-dot.red  { background: var(--banker); }
+.shoe-card-dot.blue { background: var(--player); }
+.shoe-card-dot.used { opacity: 0.12; }
+.shoe-card-dot.cut-marker   { background: var(--amber); opacity: 1; width: 3px; }
+.shoe-card-dot.start-marker { background: var(--lime);  opacity: 1; width: 3px; box-shadow: 0 0 4px var(--lime-glow); }
 
 /* ── Swap Preview ── */
 .swap-preview {
   display: none;
-  padding: 6px 12px;
-  background: rgba(255,215,0,0.08);
-  border: 1px solid rgba(255,215,0,0.3);
+  padding: 4px 8px;
+  background: rgba(255,182,72,0.05);
+  border: 1px solid rgba(255,182,72,0.32);
   border-radius: 6px;
-  font-size: 12px;
-  color: #ffd700;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--amber);
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
 }
-.swap-preview.show { display: flex; }
+.swap-preview.show { display: inline-flex; }
+.swap-preview .swap-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,182,72,0.7);
+  padding-right: 5px;
+  border-right: 1px solid rgba(255,182,72,0.22);
+}
 .swap-preview .swap-cards {
-  font-family: 'Consolas', monospace;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 /* ── Modal ── */
@@ -423,39 +731,131 @@ input[type="number"] { width: 70px; text-align: center; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(4,7,12,0.72);
+  backdrop-filter: blur(10px);
   z-index: 1000;
   align-items: center;
   justify-content: center;
+  animation: overlayIn 200ms var(--ease-out);
 }
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-overlay.show { display: flex; }
 .modal-box {
-  background: #1a2a4a;
-  border: 2px solid #3a5a7a;
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
   border-radius: 12px;
-  padding: 24px;
+  padding: 26px;
   min-width: 380px;
-  color: #e0e0e0;
+  color: var(--tx-0);
+  position: relative;
+  box-shadow:
+    0 0 0 1px rgba(198,255,61,0.08),
+    0 20px 60px rgba(0,0,0,0.6);
+  animation: modalIn 260ms var(--ease-out);
 }
-.modal-box h3 { color: #ffd700; margin-bottom: 16px; }
-.modal-box label { display: block; margin-bottom: 10px; font-size: 14px; }
-.modal-box .hint { font-size: 12px; color: #8ab4f8; margin-top: 6px; }
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+.modal-box::before {
+  content: '';
+  position: absolute;
+  left: 26px; right: 26px; top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lime), transparent);
+  opacity: 0.5;
+}
+.modal-box h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--tx-0);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-box h3::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--lime);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--lime-glow);
+}
+.modal-box label { display: block; margin-bottom: 10px; font-size: 14px; color: var(--tx-1); }
+.modal-box .hint { font-size: 12px; color: var(--tx-2); margin-top: 6px; font-family: var(--font-mono); }
 .modal-box .modal-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--bd-0);
 }
+
+/* ── Per-player bet settings grid ── */
+.bs-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: var(--font-cjk); }
+.bs-table th, .bs-table td {
+  padding: 5px 6px; border: 1px solid var(--bd-0); text-align: center;
+}
+.bs-table thead th {
+  background: var(--bg-1); color: var(--lime); font-weight: 600;
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0.1em;
+  text-transform: uppercase; position: sticky; top: 0; z-index: 1;
+}
+.bs-table thead th .bs-seat-sub { color: var(--tx-3); font-weight: normal; font-size: 10px; display:block; font-family: var(--font-mono); letter-spacing: 0.05em; }
+.bs-table .bs-group {
+  background: var(--bg-1); color: var(--cyan); font-weight: 600;
+  writing-mode: vertical-rl; text-orientation: upright;
+  letter-spacing: 0.4em; padding: 4px 2px; width: 28px;
+  font-family: var(--font-display);
+}
+.bs-table .bs-label { color: var(--tx-1); text-align: right; padding-right: 10px; white-space: nowrap; }
+.bs-table .bs-input {
+  width: 84px; background: var(--bg-0); border: 1px solid var(--bd-1);
+  color: var(--tx-0); padding: 4px 8px; text-align: right; border-radius: 4px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.bs-table .bs-input:focus { border-color: var(--lime-dim); outline: none; background: var(--bg-2); }
+
+/* ── Review table ── */
+.review-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--font-cjk); }
+.review-table th, .review-table td {
+  padding: 5px 8px; border-bottom: 1px solid var(--bd-0); text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.review-table thead th {
+  background: var(--bg-1); color: var(--tx-2);
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em;
+  position: sticky; top: 0;
+}
+.review-table tr.round-sep td { border-top: 1px solid var(--bd-1); }
+.review-table tr.round-sep.odd td { background: rgba(255,255,255,0.015); }
+.review-table .rv-correct    { color: var(--lime);    font-weight: 700; }
+.review-table .rv-wrong      { color: var(--banker);  font-weight: 700; }
+.review-table .rv-result-b   { color: var(--banker);  font-weight: 700; }
+.review-table .rv-result-p   { color: var(--player);  font-weight: 700; }
+.review-table .rv-result-t   { color: var(--tie);     font-weight: 700; }
+.review-table .rv-return     { color: var(--tx-3); }
+.review-table .rv-rolling    { color: var(--cyan);    font-weight: 600; font-family: var(--font-mono); }
+.review-table .rv-profit-pos { color: var(--lime);    font-weight: 700; font-family: var(--font-mono); }
+.review-table .rv-profit-neg { color: var(--banker);  font-weight: 700; font-family: var(--font-mono); }
+.review-table .rv-profit-zero{ color: var(--tx-2);    font-family: var(--font-mono); }
 
 /* ── Speed ── */
 .speed-control {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #8ab4f8;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tx-2);
+  letter-spacing: 0.08em;
 }
-.speed-control input[type="range"] { width: 70px; accent-color: #ffd700; }
+.speed-control input[type="range"] { width: 74px; accent-color: var(--lime); }
 
 /* ── Log ── */
 .log-bar {
@@ -463,158 +863,257 @@ input[type="number"] { width: 70px; text-align: center; }
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 4px 24px;
-  background: #0a1020;
+  padding: 5px 24px;
+  background: var(--bg-0);
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #6a8aaa;
-  border-top: 1px solid #1a3050;
+  color: var(--tx-2);
+  border-top: 1px solid var(--bd-0);
   z-index: 10;
+  letter-spacing: 0.02em;
+}
+.log-bar::before {
+  content: '› ';
+  color: var(--lime);
+  font-weight: 700;
 }
 
 /* ── Stats Bar ── */
 .stats-bar {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
-  padding: 4px 0;
+  gap: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 2px;
+  letter-spacing: 0.06em;
 }
-.stats-bar .stat { display: flex; gap: 4px; }
-.stats-bar .stat-label { color: #888; }
-.stats-bar .stat-val { font-weight: bold; }
-.stats-bar .stat-val.b { color: #e04040; }
-.stats-bar .stat-val.p { color: #4a9af5; }
-.stats-bar .stat-val.t { color: #2e8b57; }
+.stats-bar .stat { display: flex; gap: 6px; align-items: baseline; }
+.stats-bar .stat-label { color: var(--tx-3); text-transform: uppercase; }
+.stats-bar .stat-val { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 13px; }
+.stats-bar .stat-val.b { color: var(--banker); }
+.stats-bar .stat-val.p { color: var(--player); }
+.stats-bar .stat-val.t { color: var(--tie); }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a4a6a; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tx-3); }
 
 /* ══ Practice Mode ══ */
 .practice-controls { display: none; }
-.practice-controls.show { display: flex; align-items: center; gap: 8px; }
-.practice-stats-display { font-size: 20px; color: #8ab4f8; }
-.practice-stats-display .pct { color: #ffd700; font-weight: bold; }
-.btn.practice-active { background: #2d6a4f; border-color: #4a9a7a; color: #fff; box-shadow: 0 0 8px rgba(74,200,120,0.4); }
+.practice-controls.show { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.practice-stats-display {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tx-2);
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--bd-0);
+  border-radius: 5px;
+}
+.practice-stats-display .pct { color: var(--lime); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* 練習模式 ON：按鈕變 primary 樣 */
+.btn.practice-active {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0a0e05;
+  box-shadow: 0 0 0 3px var(--lime-glow);
+}
 
 /* ── Betting Table ── */
 .betting-table-wrap {
   display: none;
-  background: linear-gradient(145deg, #1a6040 0%, #0d4028 80%, #0a3020 100%);
-  border: 4px solid #8b6914;
-  border-radius: 16px;
-  padding: 12px 16px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(16,70,52,0.55) 0%, rgba(6,14,12,0.92) 75%),
+    linear-gradient(180deg, #0a1512 0%, #060c0a 100%);
+  border: 1px solid var(--bd-1);
+  border-radius: 14px;
+  padding: 14px 16px;
   position: relative;
   overflow: hidden;
 }
 .betting-table-wrap.show { display: block; }
+/* 桌面網格紋 */
 .betting-table-wrap::before {
   content: '';
   position: absolute;
-  inset: 6px;
-  border: 1px solid rgba(255,215,0,0.12);
-  border-radius: 12px;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(198,255,61,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(198,255,61,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 30%, transparent 85%);
   pointer-events: none;
+}
+/* 四角終端機標記 */
+.betting-table-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left top/12px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left top/1px 12px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right top/12px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right top/1px 12px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left bottom/12px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) left bottom/1px 12px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right bottom/12px 1px no-repeat,
+    linear-gradient(var(--lime-dim), var(--lime-dim)) right bottom/1px 12px no-repeat;
+  opacity: 0.5;
 }
 
 .bt-dealer-info {
   display: flex;
   justify-content: center;
   gap: 20px;
-  padding: 4px 0 8px;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
+  padding: 2px 0 10px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.4em;
+  color: var(--tx-3);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
 }
 
 /* Side bets row */
 .bt-side-row {
   display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
 }
 .bt-side-cell {
   flex: 1;
-  border: 2px solid;
+  border: 1px solid;
   border-radius: 6px;
-  padding: 4px 2px;
+  padding: 6px 4px;
   text-align: center;
+  font-family: var(--font-display);
   font-size: 11px;
-  font-weight: bold;
-  min-height: 40px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  min-height: 46px;
   position: relative;
+  transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), background 180ms var(--ease-out);
 }
-.bt-side-cell .bt-label { font-size: 10px; opacity: 0.8; }
-.bt-side-cell .bt-odds { font-size: 12px; }
-.bt-ppair { border-color: #4a9af5; color: #7abfff; background: rgba(74,154,245,0.1); }
-.bt-tie { border-color: #aaa; border-style: dashed; color: #2e8b57; background: rgba(46,139,87,0.08); }
-.bt-bpair { border-color: #e04040; color: #ff8888; background: rgba(224,64,64,0.1); }
+.bt-side-cell:has(.chip-area > *) {
+  box-shadow: inset 0 0 0 1px currentColor, 0 0 16px currentColor;
+}
+.bt-side-cell .bt-label { font-size: 10px; opacity: 0.85; letter-spacing: 0.18em; text-transform: uppercase; }
+.bt-side-cell .bt-odds {
+  font-family: var(--font-mono); font-size: 11px;
+  font-weight: 500; letter-spacing: 0.04em; opacity: 0.75;
+  margin-top: 1px;
+}
+.bt-ppair { border-color: var(--player); color: var(--player); background: rgba(59,130,246,0.06); }
+.bt-tie   { border-color: var(--tie);    border-style: dashed; color: var(--tie);    background: rgba(16,185,129,0.05); }
+.bt-bpair { border-color: var(--banker); color: var(--banker); background: rgba(255,69,96,0.06); }
 
 /* Lucky six row */
 .bt-lucky-row {
   display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
 }
 .bt-lucky-cell {
   flex: 1;
-  border: 2px solid #9a7a2a;
+  border: 1px solid var(--amber);
   border-radius: 6px;
-  padding: 4px 2px;
+  padding: 5px 4px;
   text-align: center;
+  font-family: var(--font-display);
   font-size: 10px;
-  color: #ffd700;
-  background: rgba(150,120,40,0.1);
-  min-height: 36px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  background: rgba(255,182,72,0.05);
+  min-height: 42px;
   position: relative;
+  transition: box-shadow 180ms var(--ease-out);
+}
+.bt-lucky-cell:has(.chip-area > *) {
+  box-shadow: inset 0 0 0 1px var(--amber), 0 0 16px rgba(255,182,72,0.4);
+}
+.bt-lucky-cell .bt-odds {
+  font-family: var(--font-mono); font-size: 10px; opacity: 0.8; letter-spacing: 0.05em;
 }
 
 /* Main bet rows */
 .bt-main-row {
   border-radius: 8px;
-  padding: 6px 8px;
-  margin-bottom: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 50px;
+  gap: 6px;
+  min-height: 54px;
   position: relative;
+  z-index: 1;
 }
 .bt-main-row .bt-row-label {
-  font-size: 14px;
-  font-weight: bold;
-  letter-spacing: 2px;
-  width: 90px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  width: 94px;
   text-align: center;
+  text-transform: uppercase;
 }
 .bt-main-row .bt-seats {
   display: flex;
   flex: 1;
-  gap: 2px;
+  gap: 4px;
 }
-.bt-banker-row { background: rgba(0,80,120,0.4); border: 2px solid #1a6080; }
-.bt-banker-row .bt-row-label { color: #e04040; }
-.bt-player-row { background: rgba(120,20,20,0.3); border: 2px solid #8a2020; }
-.bt-player-row .bt-row-label { color: #4a9af5; }
+.bt-banker-row {
+  background: linear-gradient(180deg, rgba(255,69,96,0.08), rgba(255,69,96,0.04));
+  border: 1px solid rgba(255,69,96,0.35);
+  box-shadow: inset 4px 0 0 var(--banker);
+}
+.bt-banker-row .bt-row-label { color: var(--banker); text-shadow: 0 0 12px rgba(255,69,96,0.4); }
+.bt-player-row {
+  background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(59,130,246,0.04));
+  border: 1px solid rgba(59,130,246,0.35);
+  box-shadow: inset 4px 0 0 var(--player);
+}
+.bt-player-row .bt-row-label { color: var(--player); text-shadow: 0 0 12px rgba(59,130,246,0.4); }
 
 /* Seat cells in main rows */
 .bt-seat-cell {
   flex: 1;
-  min-height: 36px;
-  border: 1px solid rgba(255,255,255,0.15);
+  min-height: 40px;
+  border: 1px dashed rgba(255,255,255,0.1);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 2px;
+  padding: 3px;
   position: relative;
+  transition: border-color 180ms var(--ease-out), background 180ms var(--ease-out);
+}
+.bt-seat-cell:has(.chip, .bet-amount) {
+  border-style: solid;
+  border-color: rgba(198,255,61,0.25);
+  background: rgba(198,255,61,0.03);
 }
 .bt-seat-cell .seat-num {
   position: absolute;
-  top: 1px;
-  left: 3px;
-  font-size: 8px;
-  color: rgba(255,255,255,0.3);
+  top: 2px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--tx-3);
+  letter-spacing: 0.05em;
 }
 
 /* Seat indicators */
@@ -622,64 +1121,201 @@ input[type="number"] { width: 70px; text-align: center; }
   display: flex;
   justify-content: center;
   gap: 10px;
-  padding: 6px 0 2px;
+  padding: 8px 0 4px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(255,255,255,0.4);
+  color: var(--tx-3);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  position: relative;
+  z-index: 1;
 }
 .bt-seat-indicator {
   width: 26px;
   height: 26px;
-  border: 1px solid rgba(255,255,255,0.25);
+  border: 1px solid var(--bd-2);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 600;
+  transition: border-color 180ms var(--ease-out), color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
 }
-.bt-seat-indicator.active { border-color: #ffd700; color: #ffd700; }
+.bt-seat-indicator.active {
+  border-color: var(--lime);
+  color: var(--lime);
+  box-shadow: 0 0 10px var(--lime-glow);
+  animation: seatPulse 2.4s var(--ease-in-out) infinite;
+}
+@keyframes seatPulse {
+  0%, 100% { box-shadow: 0 0 10px var(--lime-glow); }
+  50%      { box-shadow: 0 0 16px rgba(198,255,61,0.55); }
+}
+
+/* ── Player Stats — Bloomberg 風跑馬條 ── */
+.player-stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 10px 8px 2px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+.ps-cell {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  column-gap: 10px;
+  align-items: baseline;
+  min-width: 200px;
+  padding: 8px 14px;
+  background: rgba(8,12,16,0.55);
+  border: 1px solid var(--bd-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+/* 相鄰格用 -1px 共用邊框 */
+.ps-cell + .ps-cell { margin-left: -1px; }
+.ps-cell:first-child { border-radius: 6px 0 0 6px; }
+.ps-cell:last-child  { border-radius: 0 6px 6px 0; }
+.ps-cell:only-child  { border-radius: 6px; }
+
+/* 頂部窄條當狀態指示 */
+.ps-cell::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: var(--lime);
+  opacity: 0.6;
+}
+
+.ps-cell .ps-seat {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--lime);
+  letter-spacing: 0.04em;
+  padding-right: 10px;
+  border-right: 1px solid var(--bd-1);
+}
+.ps-cell .ps-buyin {
+  color: var(--tx-0);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ps-cell .ps-balance {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.ps-cell .ps-balance::before {
+  font-size: 9px;
+  line-height: 1;
+  display: inline-block;
+}
+.ps-cell .ps-balance.pos  { color: var(--win); }
+.ps-cell .ps-balance.pos::before  { content: '▲'; color: var(--win); }
+.ps-cell .ps-balance.zero { color: var(--tx-2); }
+.ps-cell .ps-balance.zero::before { content: '—'; color: var(--tx-3); }
+.ps-cell .ps-balance.neg  { color: var(--loss); }
+.ps-cell .ps-balance.neg::before  { content: '▼'; color: var(--loss); }
+
+.ps-cell .ps-rolling {
+  color: var(--cyan);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ps-label {
+  color: var(--tx-3);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
+/* 離桌狀態 */
+.ps-cell.ps-left {
+  opacity: 0.45;
+  background: rgba(30,8,12,0.55);
+  border-color: rgba(255,69,96,0.3);
+}
+.ps-cell.ps-left::before { background: var(--loss); }
+.ps-cell.ps-left .ps-seat { color: var(--loss); text-decoration: line-through; }
+.ps-cell .ps-left-tag {
+  color: var(--loss);
+  font-weight: 700;
+  text-align: right;
+  letter-spacing: 0.25em;
+  font-size: 10px;
+}
 
 /* ── Chips ── */
 .chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
+  letter-spacing: -0.01em;
+  transition: transform 180ms var(--ease-out);
 }
+.chip:hover { transform: translateY(-2px); }
 .chip-round {
   width: 52px;
   height: 52px;
   border-radius: 50%;
   border: 3px solid;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.05);
 }
 .chip-square {
   width: 52px;
   height: 52px;
   border-radius: 6px;
   border: 3px solid;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.05);
 }
-/* Cash chips = 黑底實線 */
+/* Cash chips = 深底實線 */
 .chip-cash { border-style: solid; }
-.chip-cash.chip-500 { background: #1a1a1a; border-color: #9b59b6; color: #9b59b6; }
-.chip-cash.chip-1000 { background: #1a1a1a; border-color: #f1c40f; color: #f1c40f; }
-.chip-cash.chip-10000 { background: #555; border-color: #e04040; color: #e04040; }
-.chip-cash.chip-100000 { background: #1a1a1a; border-color: #e04040; color: #e04040; }
+.chip-cash.chip-500    { background: #141018; border-color: #b97df0; color: #d9a6ff; }
+.chip-cash.chip-1000   { background: #1a1608; border-color: #f1c40f; color: #ffd75e; }
+.chip-cash.chip-10000  { background: #2a1a1a; border-color: #ff4560; color: #ff8da0; }
+.chip-cash.chip-100000 { background: #1a0e10; border-color: #ff4560; color: #ff8da0; }
 /* Rolling chips = 白底虛線 */
-.chip-rolling { border-style: dashed; }
-.chip-rolling.chip-1000 { background: #fff; border-color: #f1c40f; color: #b8960b; }
-.chip-rolling.chip-10000 { background: #fff; border-color: #e04040; color: #cc2020; }
-.chip-rolling.chip-100000 { background: #fff; border-color: #e04040; color: #cc2020; }
+.chip-rolling { border-style: dashed; background: #f5f5f2; }
+.chip-rolling.chip-1000   { border-color: #eab308; color: #a17d08; }
+.chip-rolling.chip-10000  { border-color: #dc2626; color: #b91c1c; }
+.chip-rolling.chip-100000 { border-color: #dc2626; color: #b91c1c; }
 
 .chip-stack {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-family: var(--font-mono);
   font-size: 14px;
-  color: #eee;
+  color: var(--tx-1);
 }
-.chip-stack .chip-mult { font-size: 16px; font-weight: bold; color: #ffd700; }
+.chip-stack .chip-mult {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lime);
+  letter-spacing: -0.02em;
+}
 
 /* Side bet chip containers */
 .bt-side-cell .chip-area,
@@ -688,148 +1324,268 @@ input[type="number"] { width: 70px; text-align: center; }
   flex-wrap: wrap;
   gap: 2px;
   justify-content: center;
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+/* 下注金額（數字顯示） */
+.bet-amount {
+  display: inline-block;
+  margin: 2px 4px;
+  padding: 3px 10px;
+  background: rgba(198,255,61,0.1);
+  border: 1px solid rgba(198,255,61,0.5);
+  border-radius: 4px;
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 12px rgba(198,255,61,0.18);
+}
+.bet-amount-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 1px 2px;
+  padding: 2px 6px;
+  background: rgba(198,255,61,0.08);
+  border: 1px solid rgba(198,255,61,0.4);
+  border-radius: 3px;
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bet-amount-side .bet-seat {
+  color: var(--tx-2);
+  font-size: 10px;
+  font-weight: 500;
 }
 
 /* ── Settlement Panel ── */
 .settlement-panel {
   display: none;
-  background: #0f1f35;
-  border: 2px solid #3a5a7a;
+  background: var(--panel);
+  border: 1px solid var(--bd-2);
   border-radius: 10px;
-  padding: 12px;
-  margin-top: 8px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  position: relative;
+}
+.settlement-panel::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 20%; bottom: 20%;
+  width: 3px;
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime-glow);
+  border-radius: 0 2px 2px 0;
 }
 .settlement-panel.show { display: block; }
 .settlement-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffd700;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lime);
 }
 .settlement-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 20px;
+  font-size: 18px;
+  font-family: var(--font-cjk);
 }
 .settlement-table th {
-  padding: 6px 8px;
-  background: #1a2a4a;
-  color: #8ab4f8;
+  padding: 8px 10px;
+  background: var(--bg-1);
+  color: var(--tx-2);
   text-align: center;
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bd-1);
 }
 .settlement-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #1a3050;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bd-0);
   text-align: center;
   vertical-align: middle;
+  font-variant-numeric: tabular-nums;
 }
-.settlement-table tr.return-row { opacity: 0.4; }
-.settlement-table tr.correct td { background: rgba(46,139,87,0.15); }
-.settlement-table tr.wrong td { background: rgba(220,50,50,0.15); }
-.settlement-table tr.active-row td { background: rgba(138,180,248,0.12); }
-.stl-action-btns { display: flex; gap: 4px; justify-content: center; }
+.settlement-table tr.return-row { opacity: 0.45; }
+.settlement-table tr.correct td    { background: rgba(198,255,61,0.08); }
+.settlement-table tr.wrong td      { background: rgba(255,69,96,0.1); }
+.settlement-table tr.active-row td { background: rgba(90,178,255,0.08); box-shadow: inset 2px 0 0 var(--cyan); }
+.stl-action-btns { display: flex; gap: 6px; justify-content: center; }
 .stl-btn {
-  padding: 5px 14px;
-  border: 1px solid #555;
-  border-radius: 4px;
-  background: #1a2a4a;
-  color: #aaa;
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  padding: 6px 16px;
+  border: 1px solid var(--bd-2);
+  border-radius: 5px;
+  background: var(--bg-2);
+  color: var(--tx-2);
+  font-size: 18px;
+  letter-spacing: 0.06em;
   cursor: pointer;
+  transition: all 160ms var(--ease-out);
 }
-.stl-btn.selected-collect { background: #8b2c2c; border-color: #e04040; color: #fff; }
-.stl-btn.selected-pay { background: #2d6a4f; border-color: #4a9a7a; color: #fff; }
-.stl-btn:hover { border-color: #8ab4f8; }
+.stl-btn.selected-collect { background: var(--banker-soft); border-color: var(--banker); color: var(--banker); box-shadow: 0 0 12px rgba(255,69,96,0.25); }
+.stl-btn.selected-pay     { background: rgba(198,255,61,0.1); border-color: var(--lime); color: var(--lime); box-shadow: 0 0 12px var(--lime-glow); }
+.stl-btn:hover { border-color: var(--tx-1); color: var(--tx-0); }
 .stl-amount {
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffd700;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lime);
   min-width: 60px;
   display: inline-block;
+  font-variant-numeric: tabular-nums;
 }
-.stl-amount.empty { color: #555; }
-.stl-correct-answer { color: #4a9; font-size: 20px; }
-.stl-wrong-answer { color: #e04040; font-size: 20px; font-weight: bold; }
+.stl-amount.empty { color: var(--tx-3); }
+.stl-amount-input {
+  width: 120px;
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--lime);
+  background: var(--bg-0);
+  border: 1px solid var(--bd-2);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.stl-amount-input:focus {
+  outline: none;
+  border-color: var(--lime);
+  background: var(--bg-1);
+  box-shadow: 0 0 0 3px var(--lime-glow);
+}
+.stl-amount-input:disabled {
+  background: var(--bg-1);
+  color: var(--tx-3);
+  border-color: var(--bd-0);
+}
+.stl-amount-input::-webkit-outer-spin-button,
+.stl-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stl-amount-input { -moz-appearance: textfield; }
+.stl-correct-answer { color: var(--lime);   font-size: 18px; font-family: var(--font-mono); font-weight: 600; }
+.stl-wrong-answer   { color: var(--banker); font-size: 18px; font-family: var(--font-mono); font-weight: 700; }
 .settlement-footer {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bd-0);
 }
-.stl-bet-info { font-size: 20px; color: #888; }
+.stl-bet-info { font-size: 16px; color: var(--tx-2); font-family: var(--font-mono); }
+.stl-bet-amount {
+  display: inline-block;
+  padding: 5px 12px;
+  background: rgba(198,255,61,0.1);
+  border: 1px solid rgba(198,255,61,0.45);
+  border-radius: 4px;
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
 /* Chip pad for settlement input */
 .chip-pad {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 12px 0 6px;
+  gap: 10px;
+  margin: 14px 0 6px;
   flex-wrap: wrap;
 }
 .chip-pad-btn {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 3px solid #ffd700;
-  background: #1a2a4a;
-  color: #ffd700;
-  font-size: 14px;
-  font-weight: bold;
+  border: 2px solid var(--lime);
+  background: var(--bg-1);
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform 120ms var(--ease-out), box-shadow 160ms var(--ease-out);
 }
-.chip-pad-btn:hover { transform: scale(1.1); box-shadow: 0 0 8px rgba(255,215,0,0.5); }
-.chip-pad-btn:active { transform: scale(0.95); }
-.chip-pad-btn.cp-50 { border-color: #aaa; color: #aaa; }
-.chip-pad-btn.cp-500 { border-color: #a855f7; color: #a855f7; }
-.chip-pad-btn.cp-1000 { border-color: #eab308; color: #eab308; }
-.chip-pad-btn.cp-10000 { border-color: #ef4444; color: #ef4444; }
-.chip-pad-btn.cp-100000 { border-color: #ef4444; color: #ef4444; border-radius: 6px; }
+.chip-pad-btn:hover  { transform: translateY(-3px); box-shadow: 0 4px 14px var(--lime-glow); }
+.chip-pad-btn:active { transform: translateY(0) scale(0.96); }
+.chip-pad-btn.cp-50     { border-color: var(--tx-2); color: var(--tx-2); }
+.chip-pad-btn.cp-500    { border-color: #b97df0; color: #b97df0; }
+.chip-pad-btn.cp-1000   { border-color: #eab308; color: #eab308; }
+.chip-pad-btn.cp-10000  { border-color: var(--banker); color: var(--banker); }
+.chip-pad-btn.cp-100000 { border-color: var(--banker); color: var(--banker); border-radius: 6px; }
 .chip-pad-clear {
-  padding: 8px 20px;
-  border: 2px solid #e04040;
-  border-radius: 8px;
-  background: #3a1a1a;
-  color: #e04040;
-  font-size: 20px;
-  font-weight: bold;
+  padding: 9px 22px;
+  border: 1px solid var(--banker);
+  border-radius: 6px;
+  background: var(--banker-soft);
+  color: var(--banker);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition: background 160ms var(--ease-out);
 }
-.chip-pad-clear:hover { background: #5a2020; }
+.chip-pad-clear:hover { background: rgba(255,69,96,0.22); }
 .chip-pad-label {
-  font-size: 20px;
-  color: #8ab4f8;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx-2);
   margin-right: 4px;
 }
-.stl-bet-type { font-weight: bold; }
-.stl-bet-type.banker { color: #e04040; }
-.stl-bet-type.player { color: #4a9af5; }
-.stl-bet-type.tie { color: #2e8b57; }
-.stl-bet-type.ppair { color: #7abfff; }
-.stl-bet-type.bpair { color: #ff8888; }
-.stl-bet-type.lucky6 { color: #ffd700; }
+.stl-bet-type { font-weight: 700; font-family: var(--font-display); letter-spacing: 0.04em; }
+.stl-bet-type.banker { color: var(--banker); }
+.stl-bet-type.player { color: var(--player); }
+.stl-bet-type.tie    { color: var(--tie); }
+.stl-bet-type.ppair  { color: var(--player); }
+.stl-bet-type.bpair  { color: var(--banker); }
+.stl-bet-type.lucky6 { color: var(--amber); }
 
 /* Compact dealing area in practice mode */
 .bac-table.compact {
   min-height: 180px;
-  padding: 12px;
-  gap: 20px;
+  padding: 14px;
+  gap: 22px;
 }
 .bac-table.compact .card { width: 60px; height: 88px; }
-.bac-table.compact .card-front .corner-tl, .bac-table.compact .card-front .corner-br { font-size: 12px; }
+.bac-table.compact .card-front .corner-tl,
+.bac-table.compact .card-front .corner-br { font-size: 12px; }
 .bac-table.compact .card-front .corner-suit { font-size: 10px; }
 .bac-table.compact .card-front .center-suit { font-size: 30px; }
 .bac-table.compact .card-slots { min-height: 95px; }
-.bac-table.compact .point-display { font-size: 24px; min-height: 28px; }
-.bac-table.compact .side-label { font-size: 13px; }
+.bac-table.compact .point-display { font-size: 28px; min-height: 30px; }
+.bac-table.compact .side-label { font-size: 12px; }
 .bac-table.compact .side-zone { min-width: 170px; }
 </style>
 </head>
@@ -839,56 +1595,6 @@ input[type="number"] { width: 70px; text-align: center; }
 <div class="header">
   <h1>百家樂發牌模擬器</h1>
   <div class="shoe-info" id="shoeInfo">尚未載入牌靴</div>
-</div>
-
-<!-- Controls -->
-<div class="controls">
-  <div class="group">
-    <button class="btn primary" id="btnRandom">隨機生成</button>
-    <button class="btn" id="btnImport">匯入 Excel</button>
-    <button class="btn" id="btnDrive">雲端匯入</button>
-    <input type="file" id="fileInput" accept=".xlsx,.xls">
-  </div>
-  <div class="group">
-    <button class="btn accent" id="btnCut" disabled>切牌</button>
-  </div>
-  <div class="group">
-    <button class="btn primary" id="btnDealOne" disabled title="空白鍵">發一張</button>
-    <button class="btn primary" id="btnDealRound" disabled title="R鍵">發完本局</button>
-    <button class="btn" id="btnRunAll" disabled>一次跑完</button>
-  </div>
-  <div class="group">
-    <button class="btn accent" id="btnSwap" disabled title="S鍵：對調下兩張的發牌順序">跳張發</button>
-    <span class="swap-preview" id="swapPreview">
-      <span>下兩張：</span>
-      <span class="swap-cards" id="swapCards"></span>
-    </span>
-  </div>
-  <div class="group">
-    <button class="btn danger" id="btnReset" disabled>重置</button>
-    <div class="speed-control">
-      <span>速度</span>
-      <input type="range" id="speedSlider" min="1" max="10" value="6">
-      <span id="speedLabel">6</span>
-    </div>
-  </div>
-  <div class="group">
-    <button class="btn accent" id="btnPractice">練習模式</button>
-    <div class="practice-controls" id="practiceControls">
-      <select id="seatCount" style="padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #3a5a7a;border-radius:4px;font-size:20px;">
-        <option value="3">3 位客人</option>
-        <option value="1">1 位</option>
-        <option value="2">2 位</option>
-        <option value="5">5 位</option>
-        <option value="7">7 位</option>
-      </select>
-      <span class="practice-stats-display" id="practiceStatsDisplay">
-        正確率: <span class="pct" id="pctDisplay">--</span>
-        (<span id="correctCount">0</span>/<span id="totalOpsCount">0</span>)
-      </span>
-      <button class="btn" id="btnResetStats" style="font-size:20px;padding:5px 12px;">重置統計</button>
-    </div>
-  </div>
 </div>
 
 <!-- Main -->
@@ -978,6 +1684,9 @@ input[type="number"] { width: 70px; text-align: center; }
       <div class="bt-seats-row" id="seatIndicators">
         ▲ 客人側 PLAYERS ▲
       </div>
+
+      <!-- Player stats (輸贏 / 洗碼) -->
+      <div class="player-stats-bar" id="playerStatsBar"></div>
     </div>
 
     <!-- Settlement Panel (practice mode) -->
@@ -999,7 +1708,7 @@ input[type="number"] { width: 70px; text-align: center; }
         </thead>
         <tbody id="settlementBody"></tbody>
       </table>
-      <div class="chip-pad" id="chipPad">
+      <div class="chip-pad" id="chipPad" style="display:none;">
         <span class="chip-pad-label">點擊籌碼輸入金額：</span>
         <button class="chip-pad-btn cp-50" data-val="50">50</button>
         <button class="chip-pad-btn cp-500" data-val="500">500</button>
@@ -1013,6 +1722,61 @@ input[type="number"] { width: 70px; text-align: center; }
         <button class="btn" id="btnSkipSettle" style="padding:6px 16px;font-size:20px;">跳過</button>
       </div>
     </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="right-col">
+    <!-- Controls -->
+    <div class="controls">
+      <div class="group">
+        <button class="btn primary" id="btnRandom">隨機生成</button>
+        <button class="btn" id="btnImport">匯入 Excel</button>
+        <button class="btn" id="btnDrive">雲端匯入</button>
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+      </div>
+      <div class="group">
+        <button class="btn accent" id="btnCut" disabled>切牌</button>
+        <button class="btn accent" id="btnStart" disabled style="display:none;" title="練習模式：先產生下注">新局</button>
+      </div>
+      <div class="group">
+        <button class="btn accent" id="btnSwap" disabled title="S鍵：對調下兩張並直接發完本局">跳張發</button>
+        <span class="swap-preview" id="swapPreview">
+          <span class="swap-label">下兩張</span>
+          <span class="swap-cards" id="swapCards"></span>
+        </span>
+        <button class="btn primary" id="btnDealRound" disabled title="R鍵">發完本局</button>
+        <button class="btn primary" id="btnDealOne" disabled title="空白鍵">發一張</button>
+        <button class="btn" id="btnRunAll" disabled>一次跑完</button>
+      </div>
+      <div class="group">
+        <button class="btn danger" id="btnReset" disabled>重置</button>
+        <div class="speed-control">
+          <span>速度</span>
+          <input type="range" id="speedSlider" min="1" max="10" value="6">
+          <span id="speedLabel">6</span>
+        </div>
+      </div>
+      <div class="group">
+        <button class="btn accent" id="btnPractice">練習模式</button>
+        <div class="practice-controls" id="practiceControls">
+          <select id="seatCount" style="padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #3a5a7a;border-radius:4px;font-size:20px;">
+            <option value="3">3 位客人</option>
+            <option value="1">1 位</option>
+            <option value="2">2 位</option>
+            <option value="5">5 位</option>
+            <option value="7">7 位</option>
+          </select>
+          <button class="btn" id="btnBetSettings" style="font-size:20px;padding:5px 12px;">下注設定</button>
+          <button class="btn" id="btnReview" style="font-size:20px;padding:5px 12px;">練習回顧</button>
+          <button class="btn danger" id="btnEndPractice" style="font-size:20px;padding:5px 12px;" title="提前結束本靴並查看回顧">結束</button>
+          <span class="practice-stats-display" id="practiceStatsDisplay">
+            正確率: <span class="pct" id="pctDisplay">--</span>
+            (<span id="correctCount">0</span>/<span id="totalOpsCount">0</span>)
+          </span>
+          <button class="btn" id="btnResetStats" style="font-size:20px;padding:5px 12px;">重置統計</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Shoe Strip -->
     <div class="shoe-strip">
@@ -1021,25 +1785,6 @@ input[type="number"] { width: 70px; text-align: center; }
         <span id="shoeProgress">0 / 0</span>
       </div>
       <div class="shoe-cards" id="shoeCards"></div>
-    </div>
-  </div>
-
-  <!-- Right Column -->
-  <div class="right-col">
-    <!-- Big Road -->
-    <div class="road-panel">
-      <div class="road-header">大路</div>
-      <div class="road-canvas">
-        <div class="road-grid" id="bigRoad"></div>
-      </div>
-    </div>
-
-    <!-- Bead Road -->
-    <div class="road-panel">
-      <div class="road-header">珠盤路</div>
-      <div class="bead-canvas">
-        <div class="bead-grid" id="beadRoad"></div>
-      </div>
     </div>
 
     <!-- History -->
@@ -1077,6 +1822,49 @@ input[type="number"] { width: 70px; text-align: center; }
     <div class="modal-actions">
       <button class="btn" id="cutCancel">取消</button>
       <button class="btn primary" id="cutConfirm">確認切牌</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bet Settings Modal -->
+<div class="modal-overlay" id="betModal">
+  <div class="modal-box" style="min-width:560px;max-width:95vw;">
+    <h3>玩家下注設定(逐位)</h3>
+    <div class="hint" style="margin-bottom:8px;">每位玩家可獨立設定;中途不新增玩家,要調整客人數請先關閉練習</div>
+    <div id="betSettingsGrid" style="max-height:60vh;overflow:auto;border:1px solid #2a4a6a;border-radius:6px;padding:8px;"></div>
+
+    <div style="font-weight:bold;color:#8ab4f8;margin:14px 0 6px;">練習記錄(全體共用)</div>
+    <label><input type="checkbox" id="setEnableReview" style="margin-right:6px">記錄每局下注與收/賠明細(供練習回顧)</label>
+    <div class="hint">關閉後新一局不會再寫入回顧紀錄;既有紀錄不會被清除</div>
+
+    <div class="modal-actions">
+      <button class="btn" id="betApplyAll" title="把第 1 位玩家的設定複製到其他玩家">套用玩1至全部</button>
+      <button class="btn" id="betReset">恢復預設</button>
+      <button class="btn" id="betCancel">取消</button>
+      <button class="btn primary" id="betConfirm">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Practice Review Modal -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal-box" style="min-width:780px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;">
+    <h3 style="margin-bottom:8px;">練習回顧 — 每局下注與收/賠明細</h3>
+    <div id="reviewSummary" style="font-size:12px;color:#8ab4f8;margin-bottom:8px;"></div>
+    <div style="flex:1;overflow:auto;border:1px solid #2a4a6a;border-radius:6px;">
+      <table class="review-table" id="reviewTable">
+        <thead>
+          <tr>
+            <th>局</th><th>結果</th><th>座位</th><th>下注</th><th>金額</th>
+            <th>正解</th><th>使用者</th><th>對錯</th><th>洗碼量</th><th>輸贏</th>
+          </tr>
+        </thead>
+        <tbody id="reviewBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="reviewClear">清空紀錄</button>
+      <button class="btn primary" id="reviewClose">關閉</button>
     </div>
   </div>
 </div>
@@ -1201,6 +1989,7 @@ function initShoe(deck) {
   updateStats();
   updateButtons();
   updateSwapPreview();
+  resetPlayerStats();
 }
 
 // ── UI Updates ──
@@ -1221,12 +2010,15 @@ function updateButtons() {
   const hasCards = (endAt - shoeIndex) >= 4;
   const settling = dealPhase === 'settlement';
   const canDeal = hasShoe && isCut && hasCards && !isRunning && dealPhase !== 'shoeEnd' && !settling;
+  const needStart = practiceMode && (dealPhase === 'idle' || dealPhase === 'done');
+  const canStart = practiceMode && hasShoe && isCut && hasCards && !isRunning && !settling && needStart;
 
   $('btnCut').disabled = !hasShoe || isCut;
-  $('btnDealOne').disabled = !canDeal;
-  $('btnDealRound').disabled = !canDeal;
+  $('btnStart').disabled = !canStart;
+  $('btnDealOne').disabled = !canDeal || needStart;
+  $('btnDealRound').disabled = !canDeal || needStart;
   $('btnRunAll').disabled = !canDeal || practiceMode;
-  $('btnSwap').disabled = !canDeal;
+  $('btnSwap').disabled = !canDeal || needStart;
   $('btnReset').disabled = !hasShoe || isRunning || settling;
   $('shoeProgress').textContent = `${shoeIndex} / ${cutEndPos > 0 ? cutEndPos : shoe.length}`;
 }
@@ -1496,6 +2288,7 @@ async function dealFullRound() {
   if (dealPhase === 'idle' || dealPhase === 'done') {
     const endAt = cutEndPos > 0 ? cutEndPos : shoe.length;
     if (shoeIndex >= endAt) { log('已到底，本靴結束'); return; }
+    if (practiceMode) { log('練習模式：請先點「新局」產生下注'); return; }
     initRound();
   }
   isRunning = true;
@@ -1555,13 +2348,14 @@ function addHistoryRow(e) {
 
 // ── Road Maps ──
 function clearRoads() {
-  $('bigRoad').innerHTML = '';
-  $('beadRoad').innerHTML = '';
+  const b = $('bigRoad'); if (b) b.innerHTML = '';
+  const d = $('beadRoad'); if (d) d.innerHTML = '';
 }
 
 // Big Road (大路)
 function renderBigRoad() {
   const grid = $('bigRoad');
+  if (!grid) return;
   grid.innerHTML = '';
 
   // Build columns: same result = go down (max 6), change = new column
@@ -1624,6 +2418,7 @@ function renderBigRoad() {
 // Bead Road (珠盤路)
 function renderBeadRoad() {
   const grid = $('beadRoad');
+  if (!grid) return;
   grid.innerHTML = '';
   for (let i = 0; i < roundHistory.length; i++) {
     const r = roundHistory[i];
@@ -1700,10 +2495,239 @@ const PAYOUTS = {
   'lucky6-mix-3': { payout: 20 },  // 混和幸運六(3張)
 };
 
+// 玩家下注設定 — 每位玩家獨立
+const DEFAULT_PLAYER_SETTINGS = {
+  ratioBanker: 45,
+  ratioPlayer: 45,
+  ratioTie: 10,
+  probPair: 20,
+  probLucky6: 15,
+  probExtraTie: 0,
+  amountMin: 500,
+  amountMax: 30000,
+  initialChips: 100000,
+};
+const DEFAULT_BET_SETTINGS = {
+  enableReview: true,
+  players: {}, // { [seat]: { ...DEFAULT_PLAYER_SETTINGS } }
+};
+function loadBetSettings() {
+  const freshPlayers = () => {
+    const p = {};
+    for (const s of SEATS) p[s] = { ...DEFAULT_PLAYER_SETTINGS };
+    return p;
+  };
+  try {
+    const raw = localStorage.getItem('at-bet-settings');
+    if (!raw) return { enableReview: true, players: freshPlayers() };
+    const obj = JSON.parse(raw);
+    // 舊版扁平格式 → 遷移:把單一設定複製給每座
+    if (!obj.players && obj.ratioBanker !== undefined) {
+      const base = {};
+      for (const k of Object.keys(DEFAULT_PLAYER_SETTINGS)) {
+        base[k] = obj[k] !== undefined ? obj[k] : DEFAULT_PLAYER_SETTINGS[k];
+      }
+      const players = {};
+      for (const s of SEATS) players[s] = { ...base };
+      return { enableReview: obj.enableReview !== false, players };
+    }
+    const players = freshPlayers();
+    if (obj.players && typeof obj.players === 'object') {
+      for (const s of Object.keys(obj.players)) {
+        players[s] = { ...DEFAULT_PLAYER_SETTINGS, ...obj.players[s] };
+      }
+    }
+    return { enableReview: obj.enableReview !== false, players };
+  } catch { return { enableReview: true, players: freshPlayers() }; }
+}
+function saveBetSettings() {
+  try { localStorage.setItem('at-bet-settings', JSON.stringify(betSettings)); } catch {}
+}
+let betSettings = loadBetSettings();
+function getPlayerSettings(seat) {
+  if (!betSettings.players[seat]) {
+    betSettings.players[seat] = { ...DEFAULT_PLAYER_SETTINGS };
+  }
+  return betSettings.players[seat];
+}
+
+// 離桌狀態:{ [seat]: true } 手上籌碼歸零即離桌,本靴不再下注
+let leftTable = {};
+
+// 依權重挑主注類型（莊/閒/和）
+function pickMainBetType(ps) {
+  const b = Math.max(0, ps.ratioBanker);
+  const p = Math.max(0, ps.ratioPlayer);
+  const t = Math.max(0, ps.ratioTie);
+  const total = b + p + t;
+  if (total <= 0) return '閒';
+  let r = Math.random() * total;
+  if (r < b) return '莊';
+  r -= b;
+  if (r < p) return '閒';
+  return '和';
+}
+
+// 在金額範圍內挑一個下注（回傳 {chipType, chipDef, count, amount} 或 null）
+// opts.customMax：額外上限（預算不足時使用，若 < amountMin 則回傳 null）
+function pickBetInRange(ps, opts) {
+  const { forBanker = false, customMax = Infinity } = opts || {};
+  const min = Math.max(0, ps.amountMin);
+  const rawMax = Math.max(min, ps.amountMax);
+  const max = Math.min(rawMax, customMax);
+  if (max < min) return null;
+  const chipType = Math.random() < 0.5 ? 'cash' : 'rolling';
+  const tries = [chipType, chipType === 'cash' ? 'rolling' : 'cash'];
+  for (const ct of tries) {
+    let pool = (ct === 'cash' ? CHIP_DEFS.cash : CHIP_DEFS.rolling).slice();
+    if (forBanker) pool = pool.filter(c => c.value >= 1000);
+    const candidates = [];
+    for (const c of pool) {
+      const minN = Math.max(1, Math.ceil(min / c.value));
+      const maxN = Math.min(3, Math.floor(max / c.value));
+      if (minN <= maxN) candidates.push({ chipDef: c, minN, maxN });
+    }
+    if (candidates.length) {
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      const n = pick.minN + Math.floor(Math.random() * (pick.maxN - pick.minN + 1));
+      return { chipType: ct, chipDef: pick.chipDef, count: n, amount: pick.chipDef.value * n };
+    }
+  }
+  return null;
+}
+
+// 在較低金額挑副注（對子、和、幸運六）— 只用 1 顆最小可行籌碼
+// customMax：預算上限；低於 amountMin 會回傳 null
+function pickSideBet(ps, chipType, customMax = Infinity) {
+  const min = Math.max(0, ps.amountMin);
+  const max = Math.min(Math.max(min, ps.amountMax), customMax);
+  if (max < min) return null;
+  const pool = (chipType === 'cash' ? CHIP_DEFS.cash : CHIP_DEFS.rolling);
+  for (const c of pool) {
+    if (c.value >= min && c.value <= max) {
+      return { chipDef: c, count: 1, amount: c.value };
+    }
+  }
+  return null;
+}
+
 let practiceMode = false;
 let practiceGuests = [];   // 當局所有下注
 let practiceStats = { totalOps: 0, errorCount: 0 };
 let lastRoundState = null; // 保存上局的牌資訊供結算用
+let roundSettled = false;  // 本局輸贏是否已累計
+
+// 練習回顧紀錄
+let practiceLog = [];
+function recordRoundToLog() {
+  if (!betSettings.enableReview) return;
+  if (!practiceGuests.length) return;
+  const last = lastRoundState || {};
+  // 快照每座累計洗碼量與輸贏(本局結算後當時數字)
+  const snapshot = {};
+  for (const seat of Object.keys(playerStats)) {
+    const st = playerStats[seat];
+    snapshot[seat] = { rolling: st.rolling, profit: st.profit };
+  }
+  practiceLog.push({
+    roundNum: roundHistory.length, // 剛結束的那局
+    pPt: last.pPt, bPt: last.bPt, result: last.result,
+    statsAfter: snapshot,
+    bets: practiceGuests.map(g => ({
+      seat: g.seat, chipType: g.chipType, betType: g.betType,
+      betAmount: g.betAmount, chipLabel: g.chipDef && g.chipDef.label, chipCount: g.chipCount,
+      correctAction: g.correctAction, correctAmount: g.correctAmount,
+      userAction: g.userAction, userAmount: g.userAmount, isCorrect: g.isCorrect,
+    })),
+  });
+}
+
+// 玩家累計：{ seat: { profit, rolling, totalBet } }
+let playerStats = {};
+function ensurePlayerStat(seat) {
+  if (!playerStats[seat]) playerStats[seat] = { profit: 0, rolling: 0, totalBet: 0 };
+  return playerStats[seat];
+}
+function resetPlayerStats() {
+  playerStats = {};
+  leftTable = {};
+  renderPlayerStats();
+}
+// 依本局所有下注累計下注流水（洗碼量改到結算後，只贏才算）
+function accumulateBetsForRolling() {
+  for (const g of practiceGuests) {
+    const s = ensurePlayerStat(g.seat);
+    s.totalBet += g.betAmount;
+  }
+  renderPlayerStats();
+}
+// 依本局結算結果累計輸贏；只有贏（pay）且為活碼時才算洗碼量
+function accumulateBetsForProfit() {
+  for (const g of practiceGuests) {
+    const s = ensurePlayerStat(g.seat);
+    if (g.correctAction === 'pay') {
+      s.profit += g.correctAmount;
+      s.rolling += g.betAmount;
+    } else if (g.correctAction === 'collect') {
+      s.profit -= g.betAmount;
+    }
+    // return（和局退回）不動
+  }
+  renderPlayerStats();
+  checkLeftTable();
+}
+function fmtSigned(n) {
+  if (n > 0) return '+' + n.toLocaleString();
+  if (n < 0) return n.toLocaleString();
+  return '0';
+}
+function renderPlayerStats() {
+  const bar = $('playerStatsBar');
+  if (!bar) return;
+  const seats = getActiveSeats();
+  bar.innerHTML = seats.map((s, i) => {
+    const ps = getPlayerSettings(s);
+    const init = Math.max(0, ps.initialChips || 0);
+    const st = playerStats[s] || { profit: 0, rolling: 0 };
+    const balance = init + st.profit;
+    if (leftTable[s]) {
+      return `<div class="ps-cell ps-left">
+        <span class="ps-seat">玩 ${i + 1}</span>
+        <span class="ps-left-tag">離桌</span>
+        <span class="ps-buyin"><span class="ps-label">出碼</span>${init.toLocaleString()}</span>
+        <span class="ps-rolling"><span class="ps-label">洗碼</span>${st.rolling.toLocaleString()}</span>
+      </div>`;
+    }
+    const balCls = balance < 0 ? 'neg' : (balance < init ? 'zero' : 'pos');
+    return `<div class="ps-cell">
+      <span class="ps-seat">玩 ${i + 1}</span>
+      <span class="ps-buyin"><span class="ps-label">出碼</span>${init.toLocaleString()}</span>
+      <span class="ps-balance ${balCls}"><span class="ps-label">輸贏</span>${balance.toLocaleString()}</span>
+      <span class="ps-rolling"><span class="ps-label">洗碼</span>${st.rolling.toLocaleString()}</span>
+    </div>`;
+  }).join('');
+}
+
+// 結算後檢查是否有玩家手上籌碼用完 → 離桌
+function checkLeftTable() {
+  const seats = getActiveSeats();
+  const newlyLeft = [];
+  for (const s of seats) {
+    if (leftTable[s]) continue;
+    const ps = getPlayerSettings(s);
+    const init = Math.max(0, ps.initialChips || 0);
+    const st = playerStats[s] || { profit: 0, rolling: 0 };
+    const balance = init + st.profit;
+    if (balance <= 0) {
+      leftTable[s] = true;
+      newlyLeft.push(s);
+    }
+  }
+  if (newlyLeft.length) {
+    log(`座 ${newlyLeft.join('、')} 手上籌碼用完,離桌`);
+    renderPlayerStats();
+  }
+}
 
 function getActiveSeats() {
   const n = parseInt($('seatCount').value) || 3;
@@ -1721,74 +2745,100 @@ function renderChipHTML(chipDef, count) {
 function generateBets() {
   practiceGuests = [];
   const seats = getActiveSeats();
-  const roundResult = null; // not known yet
+  const skippedSeats = [];
 
   for (const seat of seats) {
-    // Main bet: 莊 or 閒
-    const chipType = Math.random() < 0.5 ? 'cash' : 'rolling';
-    let mainBetType = Math.random() < 0.5 ? '莊' : '閒';
+    if (leftTable[seat]) continue; // 離桌者不下注
 
-    // 500 泥碼只能下閒
-    const available = chipType === 'cash' ? CHIP_DEFS.cash : CHIP_DEFS.rolling;
+    const ps = getPlayerSettings(seat);
+    const init = Math.max(0, ps.initialChips || 0);
+    const minBet = Math.max(0, ps.amountMin);
+    const st = playerStats[seat] || { profit: 0, rolling: 0 };
+    let budget = init + st.profit;
 
-    // Pick chip denomination
-    let chipDef;
-    if (mainBetType === '莊') {
-      // 莊注只能千的倍數 → 不能用500
-      const bankerChips = available.filter(c => c.value >= 1000);
-      chipDef = bankerChips[Math.floor(Math.random() * bankerChips.length)];
-    } else {
-      chipDef = available[Math.floor(Math.random() * available.length)];
-    }
-    const count = Math.floor(Math.random() * 3) + 1; // 1~3 顆
-    const amount = chipDef.value * count;
-
-    // 莊注最終金額確認是千的倍數
-    if (mainBetType === '莊' && amount % 1000 !== 0) {
-      mainBetType = '閒'; // fallback
+    // 手上不夠最低下注 → 該座位本局不下注
+    if (budget < minBet) {
+      skippedSeats.push(seat);
+      continue;
     }
 
+    let mainBetType = pickMainBetType(ps); // 莊/閒/和
+
+    // 主注：莊需千倍；金額不可超過手上籌碼
+    let pick = pickBetInRange(ps, { forBanker: mainBetType === '莊', customMax: budget });
+    if (!pick) {
+      // 若莊需求（千倍）導致挑不到，改下閒/和再試
+      if (mainBetType === '莊') {
+        mainBetType = budget >= minBet ? (Math.random() < 0.5 ? '閒' : '和') : null;
+        if (mainBetType) pick = pickBetInRange(ps, { forBanker: false, customMax: budget });
+      }
+    }
+    if (!pick) {
+      skippedSeats.push(seat);
+      continue;
+    }
+    const areaMap = { '莊': 'banker', '閒': 'player', '和': 'tie' };
     practiceGuests.push({
-      seat, chipType, betType: mainBetType,
-      chipDef, chipCount: count, betAmount: amount,
-      area: mainBetType === '莊' ? 'banker' : 'player'
+      seat,
+      chipType: pick.chipType,
+      betType: mainBetType,
+      chipDef: pick.chipDef,
+      chipCount: pick.count,
+      betAmount: pick.amount,
+      area: areaMap[mainBetType],
     });
+    budget -= pick.amount;
 
-    // 30% 加和注
-    if (Math.random() < 0.3) {
-      const tieChip = available[Math.floor(Math.random() * Math.min(available.length, 2))];
-      practiceGuests.push({
-        seat, chipType, betType: '和',
-        chipDef: tieChip, chipCount: 1, betAmount: tieChip.value,
-        area: 'tie'
-      });
+    const sideChipType = pick.chipType;
+
+    // 加注「和」—— 只在主注非和時
+    if (mainBetType !== '和' && Math.random() * 100 < ps.probExtraTie) {
+      const t = pickSideBet(ps, sideChipType, budget);
+      if (t) {
+        practiceGuests.push({
+          seat, chipType: sideChipType, betType: '和',
+          chipDef: t.chipDef, chipCount: t.count, betAmount: t.amount, area: 'tie'
+        });
+        budget -= t.amount;
+      }
     }
 
-    // 20% 加對子注
-    if (Math.random() < 0.2) {
-      const pairType = mainBetType === '莊' ? 'bpair' : 'ppair';
-      const pairChip = available[Math.floor(Math.random() * Math.min(available.length, 2))];
-      practiceGuests.push({
-        seat, chipType, betType: pairType,
-        chipDef: pairChip, chipCount: 1, betAmount: pairChip.value,
-        area: pairType
-      });
+    // 對子
+    if (Math.random() * 100 < ps.probPair) {
+      const pairType = mainBetType === '莊' ? 'bpair'
+                      : mainBetType === '閒' ? 'ppair'
+                      : (Math.random() < 0.5 ? 'bpair' : 'ppair');
+      const p = pickSideBet(ps, sideChipType, budget);
+      if (p) {
+        practiceGuests.push({
+          seat, chipType: sideChipType, betType: pairType,
+          chipDef: p.chipDef, chipCount: p.count, betAmount: p.amount, area: pairType
+        });
+        budget -= p.amount;
+      }
     }
 
-    // 15% 加幸運六
-    if (Math.random() < 0.15) {
+    // 幸運六
+    if (Math.random() * 100 < ps.probLucky6) {
       const luckyTypes = ['lucky6-2', 'lucky6-mix', 'lucky6-3'];
       const lt = luckyTypes[Math.floor(Math.random() * luckyTypes.length)];
-      const luckyChip = available[0];
-      practiceGuests.push({
-        seat, chipType, betType: lt,
-        chipDef: luckyChip, chipCount: 1, betAmount: luckyChip.value,
-        area: lt
-      });
+      const l = pickSideBet(ps, sideChipType, budget);
+      if (l) {
+        practiceGuests.push({
+          seat, chipType: sideChipType, betType: lt,
+          chipDef: l.chipDef, chipCount: l.count, betAmount: l.amount, area: lt
+        });
+        budget -= l.amount;
+      }
     }
   }
 
+  if (skippedSeats.length) {
+    log(`座 ${skippedSeats.join('、')} 手上籌碼不足，本局不下注`);
+  }
+
   renderBettingTable();
+  accumulateBetsForRolling();
 }
 
 // ── Render Betting Table ──
@@ -1813,7 +2863,7 @@ function renderBettingTable() {
       // Find bets for this seat + area
       const bets = practiceGuests.filter(g => g.seat === s && g.area === area);
       for (const b of bets) {
-        cell.innerHTML += renderChipHTML(b.chipDef, b.chipCount);
+        cell.innerHTML += `<span class="bet-amount">${b.betAmount.toLocaleString()}</span>`;
       }
       container.appendChild(cell);
     }
@@ -1826,7 +2876,7 @@ function renderBettingTable() {
     container.innerHTML = '';
     const bets = practiceGuests.filter(g => g.area === area);
     for (const b of bets) {
-      container.innerHTML += `<span style="font-size:8px;color:#aaa;">${b.seat}:</span>` + renderChipHTML(b.chipDef, b.chipCount);
+      container.innerHTML += `<span class="bet-amount-side"><span class="bet-seat">${b.seat}</span>${b.betAmount.toLocaleString()}</span>`;
     }
   }
 }
@@ -1920,6 +2970,7 @@ function updateAmountDisplay(idx) {
 }
 
 function enterSettlementPhase() {
+  roundSettled = false;
   const panel = $('settlementPanel');
   panel.classList.add('show');
   $('btnConfirmSettle').disabled = false;
@@ -1943,7 +2994,7 @@ function enterSettlementPhase() {
       'lucky6-2':'lucky6','lucky6-mix':'lucky6','lucky6-3':'lucky6' }[g.betType] || '';
 
     const chipTypeLabel = g.chipType === 'cash' ? '泥' : '活';
-    const chipHTML = renderChipHTML(g.chipDef, g.chipCount);
+    const chipHTML = `<span class="stl-bet-amount">${g.betAmount.toLocaleString()}</span>`;
 
     tr.innerHTML = `
       <td>${g.seat}</td>
@@ -1955,7 +3006,7 @@ function enterSettlementPhase() {
           <button class="stl-btn" data-action="pay" data-idx="${idx}">賠</button>
         </div>`}</td>
       <td>${isReturn ? '--' :
-        `<span class="stl-amount empty" data-idx="${idx}">--</span>`}</td>
+        `<input type="number" class="stl-amount-input" data-idx="${idx}" min="0" step="1" inputmode="numeric" placeholder="--">`}</td>
       <td class="stl-result-cell"></td>
     `;
     tbody.appendChild(tr);
@@ -1971,7 +3022,11 @@ function enterSettlementPhase() {
       btn.classList.add(action === 'collect' ? 'selected-collect' : 'selected-pay');
       practiceGuests[idx].userAction = action;
       practiceGuests[idx].userAmount = 0;
-      updateAmountDisplay(idx);
+      const input = row.querySelector('.stl-amount-input');
+      if (input) {
+        input.value = '';
+        input.disabled = (action === 'collect');
+      }
       if (action === 'collect') {
         // 收 = no amount needed, advance to next row
         setActiveSettleRow(-1);
@@ -1981,9 +3036,30 @@ function enterSettlementPhase() {
           if (nextBtn) nextBtn.focus();
         }
       } else {
-        // 賠 = activate this row for chip input
+        // 賠 = activate this row + focus input
         setActiveSettleRow(idx);
+        if (input) { input.disabled = false; input.focus(); }
       }
+    });
+  });
+
+  // Bind amount input
+  tbody.querySelectorAll('.stl-amount-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const idx = parseInt(inp.dataset.idx);
+      const v = parseInt(inp.value);
+      practiceGuests[idx].userAmount = isNaN(v) || v < 0 ? 0 : v;
+    });
+    inp.addEventListener('focus', () => {
+      const idx = parseInt(inp.dataset.idx);
+      const g = practiceGuests[idx];
+      if (g && g.userAction !== 'pay') {
+        // 自動把 action 設為「賠」
+        const row = inp.closest('tr');
+        const payBtn = row.querySelector('.stl-btn[data-action="pay"]');
+        if (payBtn && !payBtn.disabled) payBtn.click();
+      }
+      setActiveSettleRow(idx);
     });
   });
 
@@ -1991,7 +3067,7 @@ function enterSettlementPhase() {
   const firstBtn = tbody.querySelector('tr:not(.return-row) .stl-btn');
   if (firstBtn) firstBtn.focus();
 
-  log('請操作每位客人的收/賠，賠的金額用下方籌碼點擊輸入，按 Enter 確認');
+  log('請操作每位客人的收/賠，賠的金額直接輸入數字，按 Enter 確認');
 }
 
 function validateSettlement() {
@@ -2036,6 +3112,8 @@ function validateSettlement() {
 
   updatePracticeStatsDisplay();
 
+  if (!roundSettled) { accumulateBetsForProfit(); recordRoundToLog(); roundSettled = true; }
+
   // Auto advance after 2s
   activeSettleIdx = -1;
   $('btnConfirmSettle').disabled = true;
@@ -2047,6 +3125,7 @@ function validateSettlement() {
 }
 
 function skipSettlement() {
+  if (!roundSettled) { accumulateBetsForProfit(); recordRoundToLog(); roundSettled = true; }
   $('settlementPanel').classList.remove('show');
   dealPhase = 'done';
   updateButtons();
@@ -2072,12 +3151,15 @@ function togglePracticeMode() {
     controls.classList.add('show');
     table.classList.add('show');
     bacTable.classList.add('compact');
-    log('練習模式已開啟 — 每局結束後需操作收/賠');
+    $('btnStart').style.display = '';
+    renderPlayerStats();
+    log('練習模式已開啟 — 每局先按「新局」下注，再按發牌');
   } else {
     btn.classList.remove('practice-active');
     controls.classList.remove('show');
     table.classList.remove('show');
     bacTable.classList.remove('compact');
+    $('btnStart').style.display = 'none';
     $('settlementPanel').classList.remove('show');
     if (dealPhase === 'settlement') dealPhase = 'done';
     log('練習模式已關閉');
@@ -2088,6 +3170,7 @@ function togglePracticeMode() {
 function resetPracticeStats() {
   practiceStats = { totalOps: 0, errorCount: 0 };
   updatePracticeStatsDisplay();
+  resetPlayerStats();
 }
 
 // ── Event Handlers ──
@@ -2229,29 +3312,37 @@ $('btnDealOne').addEventListener('click', () => {
   if (dealPhase === 'done') {
     const endAt = cutEndPos > 0 ? cutEndPos : shoe.length;
     if ((endAt - shoeIndex) < 4) { log('剩餘不足 4 張，本靴結束'); dealPhase = 'shoeEnd'; updateButtons(); return; }
-    initRound();
+    if (!practiceMode) initRound();
   }
-  if (dealPhase === 'idle') initRound();
+  if (dealPhase === 'idle' && !practiceMode) initRound();
   dealNext();
   updateButtons();
+});
+
+$('btnStart').addEventListener('click', () => {
+  if (!practiceMode) return;
+  if (dealPhase !== 'idle' && dealPhase !== 'done') return;
+  const endAt = cutEndPos > 0 ? cutEndPos : shoe.length;
+  if ((endAt - shoeIndex) < 4) { log('剩餘不足 4 張，本靴結束'); dealPhase = 'shoeEnd'; updateButtons(); return; }
+  initRound();
+  updateButtons();
+  log('已產生下注，點「發一張」或「發完本局」繼續');
 });
 
 $('btnDealRound').addEventListener('click', () => dealFullRound());
 $('btnRunAll').addEventListener('click', () => runAll());
 
 $('btnSwap').addEventListener('click', () => {
-  swapNextTwo = !swapNextTwo;
-  if (swapNextTwo) {
-    $('btnSwap').classList.add('swap-active');
-    const endAt = cutEndPos > 0 ? cutEndPos : shoe.length;
-    if (shoeIndex + 1 < endAt) {
-      const c1 = shoe[shoeIndex], c2 = shoe[shoeIndex + 1];
-      log(`跳張發已啟用：下次發牌將先發 ${c2.label()} 再發 ${c1.label()}`);
-    }
-  } else {
-    $('btnSwap').classList.remove('swap-active');
-    log('跳張發已取消');
+  if ($('btnSwap').disabled) return;
+  // 一鍵：對調下兩張 + 直接發完本局
+  swapNextTwo = true;
+  $('btnSwap').classList.add('swap-active');
+  const endAt = cutEndPos > 0 ? cutEndPos : shoe.length;
+  if (shoeIndex + 1 < endAt) {
+    const c1 = shoe[shoeIndex], c2 = shoe[shoeIndex + 1];
+    log(`跳張發牌：先發 ${c2.label()} 再發 ${c1.label()}，發完本局`);
   }
+  dealFullRound();
 });
 
 $('btnReset').addEventListener('click', () => {
@@ -2271,6 +3362,219 @@ $('btnPractice').addEventListener('click', togglePracticeMode);
 $('btnResetStats').addEventListener('click', resetPracticeStats);
 $('btnConfirmSettle').addEventListener('click', validateSettlement);
 $('btnSkipSettle').addEventListener('click', skipSettlement);
+
+// Bet settings modal — 逐位玩家獨立設定
+const BET_SETTING_FIELDS = [
+  { group: '主注比例', key: 'ratioBanker', label: '莊',   step: 1,    min: 0, max: 100 },
+  { group: '主注比例', key: 'ratioPlayer', label: '閒',   step: 1,    min: 0, max: 100 },
+  { group: '主注比例', key: 'ratioTie',    label: '和',   step: 1,    min: 0, max: 100 },
+  { group: '副注%',    key: 'probPair',    label: '對子', step: 1,    min: 0, max: 100 },
+  { group: '副注%',    key: 'probLucky6',  label: '幸運六', step: 1,  min: 0, max: 100 },
+  { group: '副注%',    key: 'probExtraTie',label: '加注和', step: 1,  min: 0, max: 100 },
+  { group: '金額',     key: 'amountMin',   label: '最低', step: 100,  min: 100 },
+  { group: '金額',     key: 'amountMax',   label: '最高', step: 500,  min: 500 },
+  { group: '入桌',     key: 'initialChips',label: '初始籌碼', step: 1000, min: 0 },
+];
+
+function buildBetSettingsGrid() {
+  const seats = getActiveSeats();
+  if (!seats.length) {
+    $('betSettingsGrid').innerHTML = '<div style="padding:20px;color:#888;text-align:center;">請先選擇客人數</div>';
+    return;
+  }
+  let html = '<table class="bs-table"><thead><tr><th></th><th></th>';
+  seats.forEach((s, i) => {
+    html += `<th>玩 ${i + 1}<span class="bs-seat-sub">座 ${s}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  let lastGroup = '';
+  BET_SETTING_FIELDS.forEach(f => {
+    html += '<tr>';
+    if (f.group !== lastGroup) {
+      const rowspan = BET_SETTING_FIELDS.filter(x => x.group === f.group).length;
+      html += `<td class="bs-group" rowspan="${rowspan}">${f.group}</td>`;
+      lastGroup = f.group;
+    }
+    html += `<td class="bs-label">${f.label}</td>`;
+    for (const s of seats) {
+      const ps = getPlayerSettings(s);
+      const maxAttr = f.max !== undefined ? ` max="${f.max}"` : '';
+      html += `<td><input type="number" class="bs-input" data-seat="${s}" data-key="${f.key}" value="${ps[f.key]}" min="${f.min}" step="${f.step}"${maxAttr}></td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  $('betSettingsGrid').innerHTML = html;
+}
+
+function openBetSettingsModal() {
+  buildBetSettingsGrid();
+  $('setEnableReview').checked = !!betSettings.enableReview;
+  $('betModal').classList.add('show');
+}
+$('btnBetSettings').addEventListener('click', openBetSettingsModal);
+$('betCancel').addEventListener('click', () => $('betModal').classList.remove('show'));
+$('betReset').addEventListener('click', () => {
+  const seats = getActiveSeats();
+  for (const s of seats) {
+    betSettings.players[s] = { ...DEFAULT_PLAYER_SETTINGS };
+  }
+  openBetSettingsModal();
+});
+$('betApplyAll').addEventListener('click', () => {
+  const seats = getActiveSeats();
+  if (seats.length < 2) return;
+  const firstSeat = seats[0];
+  document.querySelectorAll(`.bs-input[data-seat="${firstSeat}"]`).forEach(inp => {
+    const key = inp.dataset.key;
+    const v = inp.value;
+    for (let i = 1; i < seats.length; i++) {
+      const other = document.querySelector(`.bs-input[data-seat="${seats[i]}"][data-key="${key}"]`);
+      if (other) other.value = v;
+    }
+  });
+});
+$('betConfirm').addEventListener('click', () => {
+  const seats = getActiveSeats();
+  const draft = {};
+  for (const s of seats) {
+    draft[s] = { ...DEFAULT_PLAYER_SETTINGS, ...getPlayerSettings(s) };
+  }
+  document.querySelectorAll('.bs-input').forEach(inp => {
+    const seat = inp.dataset.seat;
+    const key = inp.dataset.key;
+    const v = parseFloat(inp.value);
+    if (!draft[seat]) return;
+    draft[seat][key] = isFinite(v) ? v : DEFAULT_PLAYER_SETTINGS[key];
+  });
+  // 驗證
+  for (const s of seats) {
+    const p = draft[s];
+    if (p.ratioBanker + p.ratioPlayer + p.ratioTie <= 0) {
+      alert(`玩家(座 ${s}) 主注比例至少要有一項大於 0`); return;
+    }
+    if (p.amountMin <= 0 || p.amountMax < p.amountMin) {
+      alert(`玩家(座 ${s}) 金額範圍錯誤(最低須 > 0 且 ≤ 最高)`); return;
+    }
+    if (p.initialChips < 0) {
+      alert(`玩家(座 ${s}) 入桌初始籌碼須 ≥ 0`); return;
+    }
+  }
+  for (const s of seats) {
+    betSettings.players[s] = {
+      ratioBanker:  Math.max(0, draft[s].ratioBanker),
+      ratioPlayer:  Math.max(0, draft[s].ratioPlayer),
+      ratioTie:     Math.max(0, draft[s].ratioTie),
+      probPair:     Math.max(0, Math.min(100, draft[s].probPair || 0)),
+      probLucky6:   Math.max(0, Math.min(100, draft[s].probLucky6 || 0)),
+      probExtraTie: Math.max(0, Math.min(100, draft[s].probExtraTie || 0)),
+      amountMin:    draft[s].amountMin,
+      amountMax:    draft[s].amountMax,
+      initialChips: draft[s].initialChips,
+    };
+  }
+  betSettings.enableReview = $('setEnableReview').checked;
+  saveBetSettings();
+  renderPlayerStats();
+  $('betModal').classList.remove('show');
+  log(`下注設定已更新(逐位,共 ${seats.length} 位玩家),記錄${betSettings.enableReview ? '開' : '關'}`);
+});
+
+// ── Practice Review ──
+function openReviewModal() {
+  renderReviewTable();
+  $('reviewModal').classList.add('show');
+}
+function renderReviewTable() {
+  const body = $('reviewBody');
+  const sum = $('reviewSummary');
+  if (!practiceLog.length) {
+    body.innerHTML = `<tr><td colspan="10" style="padding:24px;color:#888;text-align:center;">尚無紀錄 — 於下注設定中勾選「記錄每局下注與收/賠明細」後開始新一局</td></tr>`;
+    sum.textContent = `共 0 局，記錄${betSettings.enableReview ? '開啟中' : '已關閉'}`;
+    return;
+  }
+  const betLabel = { '莊':'莊','閒':'閒','和':'和','ppair':'閒對','bpair':'莊對',
+    'lucky6-2':'幸六(2)','lucky6-mix':'幸六(混)','lucky6-3':'幸六(3)' };
+  const resCls = { '莊':'rv-result-b', '閒':'rv-result-p', '和':'rv-result-t' };
+
+  let totalOps = 0, totalErr = 0;
+  const rows = [];
+  practiceLog.forEach((r, ri) => {
+    const oddClass = ri % 2 === 0 ? 'odd' : '';
+    const rClass = resCls[r.result] || '';
+    const seatShown = new Set(); // 同局同座只在第一筆顯示洗碼/輸贏
+    r.bets.forEach((b, bi) => {
+      const isFirst = bi === 0;
+      const sepClass = isFirst ? `round-sep ${oddClass}` : '';
+      let resultCell = '';
+      if (b.correctAction === 'return') {
+        resultCell = '<span class="rv-return">退回</span>';
+      } else {
+        totalOps++;
+        if (b.isCorrect === false) totalErr++;
+        resultCell = b.isCorrect
+          ? '<span class="rv-correct">✓</span>'
+          : `<span class="rv-wrong">✗</span>`;
+      }
+      const correctStr = b.correctAction === 'return' ? '退'
+        : b.correctAction === 'collect' ? '收'
+        : `賠 ${(b.correctAmount||0).toLocaleString()}`;
+      const userStr = !b.userAction ? '<span style="color:#888">—</span>'
+        : b.userAction === 'collect' ? '收'
+        : `賠 ${(b.userAmount||0).toLocaleString()}`;
+      const chipType = b.chipType === 'cash' ? '泥' : '活';
+      // 洗碼量 / 輸贏:取該座本局結算後快照
+      const snap = (r.statsAfter || {})[b.seat];
+      let rollingCell = '';
+      let profitCell = '';
+      if (snap && !seatShown.has(b.seat)) {
+        seatShown.add(b.seat);
+        rollingCell = `<span class="rv-rolling">${snap.rolling.toLocaleString()}</span>`;
+        const pCls = snap.profit > 0 ? 'rv-profit-pos' : snap.profit < 0 ? 'rv-profit-neg' : 'rv-profit-zero';
+        const pSign = snap.profit > 0 ? '+' : '';
+        profitCell = `<span class="${pCls}">${pSign}${snap.profit.toLocaleString()}</span>`;
+      }
+      rows.push(`<tr class="${sepClass}">
+        <td>${isFirst ? `第${r.roundNum}局` : ''}</td>
+        <td class="${isFirst ? rClass : ''}">${isFirst ? `${r.result}<br><span style="color:#888;font-size:10px;">閒${r.pPt}莊${r.bPt}</span>` : ''}</td>
+        <td>${b.seat}</td>
+        <td>${betLabel[b.betType] || b.betType}</td>
+        <td>${b.betAmount.toLocaleString()}<span style="color:#666;font-size:10px;">${chipType}</span></td>
+        <td>${correctStr}</td>
+        <td>${userStr}</td>
+        <td>${resultCell}</td>
+        <td>${rollingCell}</td>
+        <td>${profitCell}</td>
+      </tr>`);
+    });
+  });
+  body.innerHTML = rows.join('');
+  const correct = totalOps - totalErr;
+  const pct = totalOps > 0 ? ((correct / totalOps) * 100).toFixed(1) : '--';
+  sum.textContent = `共 ${practiceLog.length} 局，${totalOps} 次收/賠判斷，正確 ${correct} 錯 ${totalErr}（${pct}%），記錄${betSettings.enableReview ? '開啟中' : '已關閉'}`;
+}
+$('btnReview').addEventListener('click', openReviewModal);
+$('btnEndPractice').addEventListener('click', () => {
+  if (!practiceLog.length) {
+    if (!confirm('目前沒有任何紀錄，仍要結束本靴嗎？')) return;
+  }
+  if (dealPhase !== 'shoeEnd') {
+    dealPhase = 'shoeEnd';
+    isRunning = false;
+    log('使用者提前結束練習');
+    updateButtons();
+  }
+  openReviewModal();
+});
+$('reviewClose').addEventListener('click', () => $('reviewModal').classList.remove('show'));
+$('reviewClear').addEventListener('click', () => {
+  if (!practiceLog.length) { $('reviewModal').classList.remove('show'); return; }
+  if (confirm(`確定要清空 ${practiceLog.length} 局的練習紀錄？`)) {
+    practiceLog = [];
+    renderReviewTable();
+  }
+});
 
 // Chip pad: click chip to add amount to active row
 $('chipPad').querySelectorAll('.chip-pad-btn').forEach(btn => {
@@ -2317,7 +3621,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Init
+// Init — 預設開啟練習模式
+togglePracticeMode();
 updateButtons();
 </script>
 </body>
