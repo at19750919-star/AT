@@ -492,6 +492,10 @@
         color: #ff0000 !important;
         font-weight: 700;
       }
+      .grid-cell.purple-font-cell {
+        color: #8b00ff !important;
+        font-weight: 700;
+      }
       .grid-cell.grid-cell-active {
         background-color: #7dd3fc !important;
         color: #000 !important;
@@ -2136,6 +2140,7 @@
                 const font = cell.font;
                 let suit = "♠";
                 let isSignal = false;
+                let isPurpleFont = false;
 
                 if (font && font.color && font.color.argb) {
                   const fontColor = font.color.argb.toUpperCase();
@@ -2146,13 +2151,22 @@
                   ) {
                     isSignal = true;
                   }
+                  if (
+                    fontColor === "FF7030A0" ||
+                    fontColor === "FF8B00FF" ||
+                    fontColor === "FF9900CC" ||
+                    fontColor === "FF800080" ||
+                    fontColor === "FF4B0082"
+                  ) {
+                    isPurpleFont = true;
+                  }
                 }
 
                 let rank = value;
                 if (value === "0") rank = "K";
                 if (value === "1") rank = "A";
 
-                deck.push({ rank, suit, back: backColor, isSignal });
+                deck.push({ rank, suit, back: backColor, isSignal, isPurpleFont });
               }
             }
 
@@ -2540,6 +2554,7 @@
                     const font = cell.font;
                     let suit = "♠";
                     let isSignal = false;
+                    let isPurpleFont = false;
                     if (font && font.color && font.color.argb) {
                       const fontColor = font.color.argb.toUpperCase();
                       // 同時支援標準紅色(FFFF0000)與淺紅色、語音用紅色
@@ -2550,11 +2565,20 @@
                       ) {
                         isSignal = true;
                       }
+                      if (
+                        fontColor === "FF7030A0" ||
+                        fontColor === "FF8B00FF" ||
+                        fontColor === "FF9900CC" ||
+                        fontColor === "FF800080" ||
+                        fontColor === "FF4B0082"
+                      ) {
+                        isPurpleFont = true;
+                      }
                     }
                     let rank = value;
                     if (value === "0") rank = "K";
                     if (value === "1") rank = "A";
-                    deck.push({ rank, suit, back: backColor, isSignal });
+                    deck.push({ rank, suit, back: backColor, isSignal, isPurpleFont });
                   }
                 }
                 resolve();
@@ -3208,6 +3232,7 @@
                 if (card.isSignal) cell.classList.add("signal-card");
                 const rankUpper = String(card.rank).toUpperCase();
                 if (rankUpper === 'A' || rankUpper === '2') cell.classList.add("rank-a2");
+                if (card.isPurpleFont) cell.classList.add("purple-font-cell");
                 gridContainer.appendChild(cell);
                 gridCells[cardIndex] = cell;
                 cardIndex += 1;
@@ -3855,16 +3880,26 @@
               const font = cell.font;
               let suit = '♠';
               let isSignal = false;
+              let isPurpleFont = false;
               if (font && font.color && font.color.argb) {
                 const fontColor = font.color.argb.toUpperCase();
                 if (fontColor === 'FFFF0000' || fontColor === 'FFFF4D4F' || fontColor === 'FFDC3545') {
                   isSignal = true;
                 }
+                if (
+                  fontColor === 'FF7030A0' ||
+                  fontColor === 'FF8B00FF' ||
+                  fontColor === 'FF9900CC' ||
+                  fontColor === 'FF800080' ||
+                  fontColor === 'FF4B0082'
+                ) {
+                  isPurpleFont = true;
+                }
               }
               let rank = value;
               if (value === '0') rank = 'K';
               if (value === '1') rank = 'A';
-              deck.push({ rank, suit, back: backColor, isSignal });
+              deck.push({ rank, suit, back: backColor, isSignal, isPurpleFont });
             }
           }
           if (deck.length === 0) throw new Error('檔案中沒有有效的卡片資料');

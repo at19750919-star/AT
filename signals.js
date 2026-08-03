@@ -4281,6 +4281,11 @@ function updateViolationUI(stats) {
     if (typeof applyViolationHighlights === 'function') {
         applyViolationHighlights();
     }
+
+    // 牌靴體檢圖（大路 / 違規時間軸 / 每局張數）
+    if (typeof renderShoeMap === 'function') {
+        renderShoeMap(typeof currentRounds !== 'undefined' && Array.isArray(currentRounds) ? currentRounds : [], stats);
+    }
 }
 
 /**
@@ -4875,12 +4880,39 @@ function recalculateRoundsAfterDistribution(rounds) {
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypt3_PnEL5TgdDPaBwg1M5bWAjQMR9dD5Jslicn3eZCtuNSTtqO35RafhQpuX-l9_m/exec';
 
 /**
- * 產生下一個導出檔名：F01.xlsx, F02.xlsx, ...，編號存於 localStorage 自動遞增
+ * 產生下一個導出檔名：F101.xlsx, F102.xlsx, ...
+ * 編號以「雲端 Drive 現有最大 F 編號 +1」為準（跨瀏覽器/port/裝置一致），
+ * localStorage 僅在雲端讀取失敗時作為 fallback，避免完全沒編號。
  */
-function getNextExportFilename() {
+async function getNextExportFilename() {
     const key = 'at-export-counter';
-    const last = parseInt(localStorage.getItem(key) || '0', 10);
-    const next = (Number.isFinite(last) && last >= 0 ? last : 0) + 1;
+    const START = 100; // 從 F101 開始（START + 1）
+
+    // 取得雲端現有最大 F 編號
+    let cloudMax = -1;
+    try {
+        const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.files)) {
+            for (const f of data.files) {
+                const m = (f.name || '').match(/^F(\d+)\.xlsx$/i);
+                if (m) {
+                    const n = parseInt(m[1], 10);
+                    if (Number.isFinite(n) && n > cloudMax) cloudMax = n;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('讀取雲端檔案清單失敗，改用本機計數器', e);
+    }
+
+    // 本機計數器（fallback / 與雲端取較大者，避免雲端暫時讀不到就倒退）
+    const local = parseInt(localStorage.getItem(key) || '0', 10);
+    let base = START;
+    if (Number.isFinite(cloudMax) && cloudMax >= base) base = cloudMax;
+    if (Number.isFinite(local) && local > base) base = local;
+
+    const next = base + 1;
     localStorage.setItem(key, String(next));
     const padded = next < 100 ? String(next).padStart(2, '0') : String(next);
     return `F${padded}.xlsx`;
@@ -5526,8 +5558,8 @@ async function exportRoundsAsExcelWithDrive() {
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-        // 生成檔名（F01.xlsx, F02.xlsx, ... 自動遞增）
-        const filename = getNextExportFilename();
+        // 生成檔名（F101.xlsx, F102.xlsx, ...，以雲端最大編號 +1）
+        const filename = await getNextExportFilename();
 
         // === 下載到本機 ===
         const link = document.createElement('a');

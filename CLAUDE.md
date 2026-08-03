@@ -44,3 +44,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 違規修復規範
 
 詳見 @SKILL.md — 必須依序處理：無法對調 → 連續4張 → 連續莊閒 → 訊號牌 → 卡色
+
+## 操作規範（必守，避免重複錯誤）
+
+- **瀏覽器一律開在使用者本機 Chrome**（`claude-in-chrome`，isLocal），使用者要能看到畫面。**禁止**用 in-app / preview 內建瀏覽器——它的下載落在沙箱，使用者的「下載」資料夾看不到檔案。
+- **導出一律點網頁上的「導出」按鈕**（`btnExportCombined`），**不要**用程式呼叫 `exportRoundsAsExcelWithDrive()` 或預查 `getNextExportFilename()`。程式繞過 UI 會造成檔名跳號、回報編號與雲端實際不符。
+- **「卡背顏色混合」checkbox 不要打勾。**
+- 不要自作主張用程式繞過 UI，照網頁正常操作流程做。

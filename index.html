@@ -1911,6 +1911,125 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
 [data-theme="light"] .theme-toggle .icon-dark  { display: none; }
 [data-theme="light"] .theme-toggle .icon-light { display: inline; }
 
+/* ══════════════════════════════════════════════
+   牌靴體檢圖（大路 + 違規時間軸 + 每局張數）
+   ══════════════════════════════════════════════ */
+/* 路單按鈕開啟狀態 */
+.tool-btn.active {
+    background: var(--phosphor);
+    color: var(--bg-void);
+    border-color: var(--phosphor);
+}
+[data-theme="light"] .tool-btn.active {
+    background: var(--jade); color: var(--paper-1); border-color: var(--jade);
+}
+
+.shoe-map {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 8px;
+}
+.shoe-map.has-data { display: flex; }
+
+.shoe-map-head {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.shoe-map-title {
+    font-family: var(--font-label);
+    font-size: 13px; letter-spacing: 3px;
+    color: var(--phosphor);
+    text-shadow: var(--phosphor-soft);
+    text-transform: uppercase;
+}
+.shoe-map-legend {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-mid);
+}
+.shoe-map-legend span { white-space: nowrap; }
+.shoe-map-legend i {
+    display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+    margin-right: 4px; vertical-align: 0;
+}
+
+/* ── 大路 ── */
+.bigroad {
+    overflow-x: auto;
+    background: var(--bg-inset);
+    border: var(--border-dim); border-radius: 3px;
+    padding: 5px;
+}
+.bigroad-grid {
+    display: grid;
+    grid-template-rows: repeat(6, 17px);
+    grid-auto-columns: 17px;
+    gap: 1px;
+    width: max-content;
+}
+.bigroad-cell {
+    width: 15px; height: 15px; box-sizing: border-box;
+    border: 2px solid transparent; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 8px; line-height: 1;
+    cursor: pointer; position: relative;
+}
+.bigroad-cell:hover { transform: scale(1.35); z-index: 5; }
+.bigroad-cell.side-b { border-color: var(--red-alert); color: var(--red-alert); }
+.bigroad-cell.side-p { border-color: var(--cyan);      color: var(--cyan); }
+.bigroad-cell.side-t { border-color: var(--phosphor);  color: var(--phosphor); }
+.bigroad-cell.has-tie::after {
+    content: ''; position: absolute; left: -3px; right: -3px; top: 50%;
+    height: 2px; margin-top: -1px;
+    background: var(--phosphor);
+    transform: rotate(-45deg);
+}
+.bigroad-cell.in-violation { box-shadow: 0 0 0 1px var(--amber); }
+
+/* ── 共用局號軌 ── */
+.map-row { display: flex; align-items: center; gap: 6px; }
+.map-row-label {
+    width: 40px; flex: none; text-align: right;
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 1px;
+    color: var(--text-mid);
+}
+.map-track { flex: 1; display: grid; gap: 1px; min-width: 0; }
+
+/* 違規軌 */
+.map-cell {
+    height: 14px; border-radius: 1px; cursor: pointer;
+    background: var(--phosphor-faint);
+}
+.map-cell:hover { outline: 1px solid var(--phosphor); }
+
+/* 張數軌 */
+.bar-cell {
+    height: 24px; display: flex; align-items: flex-end; cursor: pointer;
+}
+.bar-cell:hover { outline: 1px solid var(--phosphor); }
+.bar-cell i { display: block; width: 100%; border-radius: 1px 1px 0 0; }
+.bar-c4 i { background: rgba(0,255,136,0.28); }
+.bar-c5 i { background: rgba(0,255,136,0.55); }
+.bar-c6 i { background: var(--phosphor); }
+.bar-cx i { background: var(--amber); }
+[data-theme="light"] .bar-c4 i { background: rgba(31,90,62,0.30); }
+[data-theme="light"] .bar-c5 i { background: rgba(31,90,62,0.60); }
+
+/* 刻度 */
+.map-ticks { flex: 1; display: grid; gap: 1px; min-width: 0; }
+.map-tick {
+    font-family: var(--font-mono); font-size: 9px; line-height: 12px;
+    color: var(--text-dim); text-align: center; white-space: nowrap;
+}
+
+/* 點擊定位時的閃爍 */
+@keyframes shoeMapFlash {
+    0%, 100% { background: transparent; }
+    50%      { background: rgba(255,170,0,0.35); }
+}
+tr.shoe-map-focus > td { animation: shoeMapFlash 0.6s ease-in-out 2; }
+
     </style>
 </head>
 
@@ -1928,6 +2047,19 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
 
     <!-- ========== 主容器 ========== -->
     <div class="container">
+        <header class="app-header" hidden>
+            <div class="brand-lockup">
+                <div class="brand-mark">AT</div>
+                <div>
+                    <p class="brand-eyebrow">AT 3.0 · Baccarat signal desk</p>
+                    <h1>百家樂牌靴分析工作台</h1>
+                </div>
+            </div>
+            <div class="header-meta">
+                <span class="live-pill">分析模組就緒</span>
+                <span>LOCAL WORKSPACE</span>
+            </div>
+        </header>
 
         <!-- ===== 第一行：花色 + 訊號張數 + 清空 + GO + 圓餅圖 + 切牌 ===== -->
         <div class="top-controls">
@@ -2172,6 +2304,7 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                 <button class="tool-btn" id="btnImport">匯入</button>
                 <input type="file" id="importFileInput" accept=".xlsx" style="display:none">
                 <button class="tool-btn" id="btnValidate">驗證</button>
+                <button class="tool-btn" id="btnShoeMap" onclick="toggleShoeMap()">路單</button>
                 <button class="tool-btn" id="btnSpeech">語音</button>
                 <button class="tool-btn" id="btnPointStats" onclick="window.open('point_stats.html','_blank')">點數統計</button>
                 <button class="tool-btn" id="btnManualInput" onclick="window.open('manual_input.html','_blank')">手動輸入</button>
@@ -2207,6 +2340,9 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
                 </div>
             </div>
         </div>
+
+        <!-- ===== 第四行：牌靴體檢圖（大路 / 違規 / 張數） ===== -->
+        <div class="panel shoe-map" id="shoeMap"></div>
     </div>
 
     <!-- ========== JavaScript ========== -->
@@ -2350,6 +2486,8 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
     <!-- 主題切換邏輯 -->
     <script>
         (function(){
+            if (window.__atThemeToggleBound) return;
+            window.__atThemeToggleBound = true;
             var btn = document.getElementById('themeToggle');
             btn.addEventListener('click', function(){
                 var html = document.documentElement;
@@ -2368,6 +2506,8 @@ tr.highlighted-row { background: rgba(255,170,0,0.05) !important; }
     <!-- 主題切換邏輯 -->
     <script>
         (function(){
+            if (window.__atThemeToggleBound) return;
+            window.__atThemeToggleBound = true;
             var btn = document.getElementById('themeToggle');
             btn.addEventListener('click', function(){
                 var html = document.documentElement;

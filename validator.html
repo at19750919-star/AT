@@ -27,19 +27,27 @@
   </div>
 
   <div class="row" id="fileInput">
-    <input id="file" type="file" accept=".xlsx" />
+    <input id="file" type="file" accept=".xlsx" multiple />
     <button id="run">開始驗算</button>
   </div>
 
   <div class="row" id="driveInput" style="display:none;">
     <button id="loadDrive">載入雲端檔案清單</button>
     <select id="driveFolders" style="min-width:200px;"><option value="">根目錄</option></select>
-    <select id="driveFiles" style="min-width:300px;"></select>
-    <button id="runDrive">驗算選取檔案</button>
+    <select id="driveFiles" style="min-width:300px;" multiple size="8"></select>
+    <button id="runDrive">驗算選取檔案（可多選，Ctrl/Shift 點選）</button>
+  </div>
+
+  <div class="box" id="batchBox" style="display:none;">
+    <div><b>批次結果總覽</b></div>
+    <table id="batchTable">
+      <thead><tr><th>檔案</th><th>狀態</th><th>錯誤數</th><th>警告</th><th></th></tr></thead>
+      <tbody id="batchTableBody"></tbody>
+    </table>
   </div>
 
   <div class="box">
-    <div id="summary" class="muted">請選擇 xlsx 檔案</div>
+    <div id="summary" class="muted">請選擇 xlsx 檔案（可多選）</div>
   </div>
 
   <div class="box">
@@ -752,25 +760,90 @@
       }
     }
 
-    // === 本地檔案 ===
-    $run.addEventListener('click', async () => {
-      const f = $file.files && $file.files[0];
-      if (!f) {
-        alert('請先選擇 xlsx 檔');
+    // 批次跑多個檔案：每個檔案各自呼叫 runValidation，抓取結果彙整成總覽表
+    const $batchBox = document.getElementById('batchBox');
+    const $batchTableBody = document.getElementById('batchTableBody');
+
+    async function runBatch(items) {
+      // items: [{ name, getBuffer: async () => ArrayBuffer }]
+      $batchBox.style.display = items.length > 1 ? 'block' : 'none';
+      $batchTableBody.innerHTML = '';
+      const batchResults = [];
+
+      for (const item of items) {
+        $summary.textContent = `驗算中：${item.name} (${batchResults.length + 1}/${items.length})`;
+        $issues.textContent = '';
+        try {
+          const buf = await item.getBuffer();
+          await runValidation(buf);
+          batchResults.push({
+            name: item.name,
+            summaryHtml: $summary.innerHTML,
+            issuesHtml: $issues.innerHTML,
+            passed: $summary.innerHTML.includes('驗證通過'),
+            issueCountMatch: $issues.innerHTML.match(/錯誤清單\s*\((\d+)\)/),
+            hasWarning: $issues.innerHTML.includes('警告')
+          });
+        } catch (e) {
+          batchResults.push({
+            name: item.name,
+            summaryHtml: `<span class="bad">執行失敗：${esc(e.message)}</span>`,
+            issuesHtml: '',
+            passed: false,
+            issueCountMatch: null,
+            hasWarning: false
+          });
+          console.error(e);
+        }
+      }
+
+      if (items.length === 1) {
+        // 單檔：維持原本行為，直接顯示在下方
+        const r = batchResults[0];
+        $summary.innerHTML = r.summaryHtml;
+        $issues.innerHTML = r.issuesHtml;
         return;
       }
 
-      $summary.textContent = '讀取中…';
-      $issues.textContent = '';
+      // 多檔：畫總覽表，點列可切換下方詳細內容
+      $batchTableBody.innerHTML = batchResults.map((r, i) => {
+        const issueCount = r.issueCountMatch ? r.issueCountMatch[1] : '0';
+        const statusHtml = r.passed
+          ? '<span class="ok">✓ 通過</span>'
+          : '<span class="bad">✗ 有問題</span>';
+        return `<tr>
+          <td>${esc(r.name)}</td>
+          <td>${statusHtml}</td>
+          <td>${issueCount}</td>
+          <td>${r.hasWarning ? '有' : '—'}</td>
+          <td><button data-idx="${i}" class="viewDetail">查看詳細</button></td>
+        </tr>`;
+      }).join('');
 
-      try {
-        const buf = await f.arrayBuffer();
-        await runValidation(buf);
-      } catch (e) {
-        $summary.innerHTML = `<span class="bad">執行失敗：${esc(e.message)}</span>`;
-        $issues.textContent = '';
-        console.error(e);
+      $batchTableBody.querySelectorAll('.viewDetail').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const r = batchResults[parseInt(btn.dataset.idx, 10)];
+          $summary.innerHTML = `<b>${esc(r.name)}</b><br>${r.summaryHtml}`;
+          $issues.innerHTML = r.issuesHtml;
+        });
+      });
+
+      const passCount = batchResults.filter(r => r.passed).length;
+      $summary.innerHTML = `批次驗算完成：共 ${batchResults.length} 個檔案，<span class="ok">${passCount} 個通過</span>` +
+        (passCount < batchResults.length ? `，<span class="bad">${batchResults.length - passCount} 個有問題</span>` : '');
+      $issues.innerHTML = '<span class="muted">請點上方總覽表「查看詳細」或往下捲動看批次結果總覽</span>';
+    }
+
+    // === 本地檔案 ===
+    $run.addEventListener('click', async () => {
+      const files = $file.files ? Array.from($file.files) : [];
+      if (!files.length) {
+        alert('請先選擇 xlsx 檔（可多選）');
+        return;
       }
+
+      const items = files.map(f => ({ name: f.name, getBuffer: () => f.arrayBuffer() }));
+      await runBatch(items);
     });
 
     // === 雲端硬碟功能 ===
@@ -835,35 +908,33 @@
       loadDriveFiles($driveFolders.value);
     });
 
+    async function downloadDriveFileBuffer(fileId) {
+      // 使用與 assistant.html 相同的參數格式
+      const downloadUrl = `${GOOGLE_APPS_SCRIPT_URL}?fileId=${fileId}`;
+      const response = await fetch(downloadUrl);
+      const base64Data = await response.text();
+
+      // 將 base64 轉換為 ArrayBuffer
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
     $runDrive.addEventListener('click', async () => {
-      const fileId = $driveFiles.value;
-      if (!fileId) {
-        alert('請先選擇檔案');
+      const selectedOptions = Array.from($driveFiles.selectedOptions || []);
+      if (!selectedOptions.length) {
+        alert('請先選擇檔案（可 Ctrl/Shift 多選）');
         return;
       }
-      
-      try {
-        $summary.textContent = '下載雲端檔案...';
-        $issues.textContent = '';
-        
-        // 使用與 assistant.html 相同的參數格式
-        const downloadUrl = `${GOOGLE_APPS_SCRIPT_URL}?fileId=${fileId}`;
-        const response = await fetch(downloadUrl);
-        const base64Data = await response.text();
-        
-        // 將 base64 轉換為 ArrayBuffer
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        await runValidation(bytes.buffer);
-      } catch (e) {
-        $summary.innerHTML = `<span class="bad">執行失敗：${esc(e.message)}</span>`;
-        $issues.textContent = '';
-        console.error(e);
-      }
+
+      const items = selectedOptions.map(opt => ({
+        name: opt.textContent,
+        getBuffer: () => downloadDriveFileBuffer(opt.value)
+      }));
+      await runBatch(items);
     });
   </script>
 </body>

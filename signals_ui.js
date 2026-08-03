@@ -3059,6 +3059,7 @@ function renderDeckSummary(summary) {
     if (!container) return;
     if (!summary || !summary.by_rank_suit) {
         container.innerHTML = '';
+        container.style.display = 'none';
         return;
     }
     const ranks = SIGNAL_RANKS_ORDER;
@@ -3105,6 +3106,247 @@ function renderDeckSummary(summary) {
     html += '</tbody></table>';
     html += `<div class="stats-total">牌靴總張數:<strong>${totalCards}/416</strong></div>`;
     container.innerHTML = html;
+    // 牌數完整（416）時隱藏此表，只有缺牌/多牌時才顯示
+    container.style.display = (totalCards === 416) ? 'none' : '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// 牌靴體檢圖：大路 + 違規時間軸 + 每局張數（共用局號軸）
+// ══════════════════════════════════════════════════════════════
+
+const SHOE_MAP_TYPES = [
+    { key: 'signal', label: '訊號牌', color: '#e02020' },
+    { key: 'fourCard', label: '連續4張', color: '#ff8c00' },
+    { key: 'streak', label: '連續莊閒', color: '#d4a017' },
+    { key: 'cannotSwap', label: '無法對調', color: '#8b5cf6' },
+    { key: 'other', label: '張數/卡色', color: '#0ea5e9' }
+];
+const SHOE_MAP_TYPE_MAP = SHOE_MAP_TYPES.reduce((acc, t) => { acc[t.key] = t; return acc; }, {});
+
+// 路單預設不顯示，由左側「路單」按鈕切換
+let shoeMapVisible = false;
+
+function toggleShoeMap() {
+    const container = document.getElementById('shoeMap');
+    if (!container) return;
+
+    if (!shoeMapVisible && (!Array.isArray(currentRounds) || currentRounds.length === 0)) {
+        log('請先生成牌靴,再查看路單。', 'error');
+        return;
+    }
+
+    shoeMapVisible = !shoeMapVisible;
+    const btn = document.getElementById('btnShoeMap');
+    if (btn) btn.classList.toggle('active', shoeMapVisible);
+
+    if (shoeMapVisible) {
+        // 觸發重新計算違規並繪製
+        if (typeof refreshViolationStats === 'function') refreshViolationStats();
+        if (typeof container.scrollIntoView === 'function') {
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } else {
+        container.innerHTML = '';
+        container.classList.remove('has-data');
+    }
+}
+
+// 取該局真實結果（與違規判定同源），失敗時退回 round.result
+function getShoeMapResult(round) {
+    if (typeof getTrueRoundResultSafe === 'function') {
+        const r = getTrueRoundResultSafe(round);
+        if (r) return r;
+    }
+    return (round && round.result) ? round.result : null;
+}
+
+// 依標準大路規則排出格子座標（同側往下、撞底或撞格則拐龍往右）
+function buildBigRoadCells(rounds) {
+    const cells = [];
+    const occupied = new Set();
+    let last = null;
+    let colStart = -1;
+    let maxCol = -1;
+
+    rounds.forEach((round, idx) => {
+        const side = getShoeMapResult(round);
+        if (!side) return;
+
+        // 和局：疊在上一格上（斜線 + 次數），開局即和則自成一格
+        if (side === '和' && last) {
+            last.ties++;
+            last.tieRounds.push(idx);
+            return;
+        }
+
+        let c, r;
+        if (!last) {
+            c = 0; r = 0; colStart = 0;
+        } else if (side !== '和' && last.side === side) {
+            c = last.c; r = last.r + 1;
+            if (r > 5 || occupied.has(`${c},${r}`)) {
+                r = last.r; c = last.c + 1;
+                while (occupied.has(`${c},${r}`)) c++;
+            }
+        } else {
+            c = colStart + 1; r = 0;
+            while (occupied.has(`${c},${r}`)) c++;
+            colStart = c;
+        }
+
+        const cell = { c, r, side, roundIdx: idx, ties: 0, tieRounds: [] };
+        occupied.add(`${c},${r}`);
+        cells.push(cell);
+        if (c > maxCol) maxCol = c;
+        last = cell;
+    });
+
+    return { cells, cols: maxCol + 1 };
+}
+
+// 局索引 → 違規類型清單
+function buildShoeMapViolationMap(rounds, stats) {
+    const map = new Map();
+    if (!stats) return map;
+    const add = (idx, key) => {
+        if (!Number.isInteger(idx) || idx < 0 || idx >= rounds.length) return;
+        if (!map.has(idx)) map.set(idx, []);
+        const arr = map.get(idx);
+        if (!arr.includes(key)) arr.push(key);
+    };
+    (stats.signalViolationRounds || []).forEach(n => add(Number(n) - 1, 'signal'));
+    (stats.fourCardBlocks || []).forEach(b => {
+        for (let i = b.startIdx; i <= b.endIdx; i++) add(i, 'fourCard');
+    });
+    (stats.streakBlocks || []).forEach(b => {
+        for (let i = b.startIdx; i <= b.endIdx; i++) add(i, 'streak');
+    });
+    (stats.cannotSwapRounds || []).forEach(n => add(Number(n) - 1, 'cannotSwap'));
+    (stats.cardCountMismatchRounds || []).forEach(n => add(Number(n) - 1, 'other'));
+    (stats.cardColorRounds || []).forEach(n => add(Number(n) - 1, 'other'));
+    return map;
+}
+
+// 多種違規時用等分色帶呈現
+function shoeMapCellBackground(keys) {
+    if (!keys || keys.length === 0) return '';
+    const colors = keys.map(k => (SHOE_MAP_TYPE_MAP[k] || {}).color).filter(Boolean);
+    if (colors.length === 0) return '';
+    if (colors.length === 1) return colors[0];
+    const step = 100 / colors.length;
+    const stops = colors.map((c, i) => `${c} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`);
+    return `linear-gradient(180deg, ${stops.join(',')})`;
+}
+
+// 點體檢圖任一格 → 捲到表格對應列並閃爍
+function focusRoundFromShoeMap(idx) {
+    const row = document.querySelector(`#roundsBody tr[data-r="${idx}"]`);
+    if (!row) return;
+    document.querySelectorAll('#roundsBody tr.shoe-map-focus').forEach(r => r.classList.remove('shoe-map-focus'));
+    void row.offsetWidth;
+    row.classList.add('shoe-map-focus');
+    if (typeof row.scrollIntoView === 'function') {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => row.classList.remove('shoe-map-focus'), 1400);
+}
+
+function renderShoeMap(rounds, stats) {
+    const container = document.getElementById('shoeMap');
+    if (!container) return;
+
+    if (!shoeMapVisible || !Array.isArray(rounds) || rounds.length === 0) {
+        container.innerHTML = '';
+        container.classList.remove('has-data');
+        return;
+    }
+
+    const total = rounds.length;
+    const vmap = buildShoeMapViolationMap(rounds, stats);
+    const { cells, cols } = buildBigRoadCells(rounds);
+
+    // 圖例
+    const legend = [
+        `<span><i style="background:var(--red-alert)"></i>莊</span>`,
+        `<span><i style="background:var(--cyan)"></i>閒</span>`,
+        `<span><i style="background:var(--phosphor)"></i>和</span>`
+    ].concat(
+        SHOE_MAP_TYPES.map(t => `<span><i style="background:${t.color}"></i>${t.label}</span>`)
+    ).join('');
+
+    let html = `<div class="shoe-map-head">
+        <div class="shoe-map-title">牌靴體檢 · ${total} 局</div>
+        <div class="shoe-map-legend">${legend}</div>
+    </div>`;
+
+    // ── 大路 ──
+    const sideClass = { '莊': 'side-b', '閒': 'side-p', '和': 'side-t' };
+    let roadHtml = '';
+    cells.forEach(cell => {
+        const cls = ['bigroad-cell', sideClass[cell.side] || 'side-t'];
+        if (cell.ties > 0) cls.push('has-tie');
+        if (vmap.has(cell.roundIdx)) cls.push('in-violation');
+        const tieText = cell.ties > 1 ? cell.ties : '';
+        const tieTip = cell.ties > 0 ? ` · 和x${cell.ties}(第${cell.tieRounds.map(i => i + 1).join(',')}局)` : '';
+        const tip = `第${cell.roundIdx + 1}局 · ${cell.side}${tieTip}`;
+        roadHtml += `<div class="${cls.join(' ')}" style="grid-column:${cell.c + 1};grid-row:${cell.r + 1}"`
+            + ` data-round="${cell.roundIdx}" title="${tip}">${tieText}</div>`;
+    });
+    html += `<div class="bigroad"><div class="bigroad-grid" style="grid-template-columns:repeat(${Math.max(cols, 1)},17px)">${roadHtml}</div></div>`;
+    const trackStyle = `grid-template-columns:repeat(${total},minmax(0,1fr))`;
+
+    // ── 違規時間軸 ──
+    let vioHtml = '';
+    for (let i = 0; i < total; i++) {
+        const keys = vmap.get(i) || [];
+        const bg = shoeMapCellBackground(keys);
+        const names = keys.map(k => (SHOE_MAP_TYPE_MAP[k] || {}).label).filter(Boolean).join('、');
+        const tip = `第${i + 1}局 · ${names ? '違規：' + names : '無違規'}`;
+        vioHtml += `<div class="map-cell" data-round="${i}" title="${tip}"${bg ? ` style="background:${bg}"` : ''}></div>`;
+    }
+    html += `<div class="map-row"><div class="map-row-label">違規</div>
+        <div class="map-track" style="${trackStyle}">${vioHtml}</div></div>`;
+
+    // ── 每局張數 ──
+    let barHtml = '';
+    for (let i = 0; i < total; i++) {
+        const n = (rounds[i] && Array.isArray(rounds[i].cards)) ? rounds[i].cards.length : 0;
+        let cls = 'bar-cx', h = 100;
+        if (n === 4) { cls = 'bar-c4'; h = 45; }
+        else if (n === 5) { cls = 'bar-c5'; h = 72; }
+        else if (n === 6) { cls = 'bar-c6'; h = 100; }
+        const side = getShoeMapResult(rounds[i]) || '--';
+        const tip = `第${i + 1}局 · ${side} · ${n}張`;
+        barHtml += `<div class="bar-cell ${cls}" data-round="${i}" title="${tip}"><i style="height:${h}%"></i></div>`;
+    }
+    html += `<div class="map-row"><div class="map-row-label">張數</div>
+        <div class="map-track" style="${trackStyle}">${barHtml}</div></div>`;
+
+    // ── 局號刻度 ──
+    let tickHtml = '';
+    for (let i = 0; i < total; i++) {
+        const show = (i === 0) || ((i + 1) % 10 === 0);
+        tickHtml += `<div class="map-tick">${show ? (i + 1) : ''}</div>`;
+    }
+    html += `<div class="map-row"><div class="map-row-label"></div>
+        <div class="map-ticks" style="${trackStyle}">${tickHtml}</div></div>`;
+
+    container.innerHTML = html;
+    container.classList.add('has-data');
+
+    if (!container.dataset.bound) {
+        container.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-round]');
+            if (!target) return;
+            focusRoundFromShoeMap(Number(target.dataset.round));
+        });
+        container.dataset.bound = '1';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.renderShoeMap = renderShoeMap;
+    window.toggleShoeMap = toggleShoeMap;
 }
 
 // 重設編輯狀態與按鈕
@@ -3590,7 +3832,7 @@ async function exportRoundsAsExcel() {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.href = url;
-        link.download = (typeof getNextExportFilename === 'function') ? getNextExportFilename() : `signal-analysis-${Date.now()}.xlsx`;
+        link.download = (typeof getNextExportFilename === 'function') ? await getNextExportFilename() : `signal-analysis-${Date.now()}.xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
