@@ -713,7 +713,11 @@ if (suits.length === 0) {
     const countElement = document.getElementById('signalCardCount');
     if (countElement) {
         countElement.textContent = totalCards;
-        countElement.style.color = '#3A342F';
+    }
+    // 橫幅組合文字跟著目前選取即時更新
+    const configEl = document.getElementById('signalConfigDisplay');
+    if (configEl) {
+        configEl.textContent = formatSignalConfigText(suits, ranks);
     }
 }
 
@@ -747,13 +751,16 @@ if (suits.length === 0) {
 function updateSignalConfigDisplay() {
     const el = document.getElementById('signalConfigDisplay');
     if (!el) return;
-    const suits = (SIGNAL_CONFIG.suits || []).join('');
-    const ranks = (SIGNAL_CONFIG.ranks || []).join(',');
-    if (suits && ranks) {
-        el.textContent = `${suits} × ${ranks}`;
-    } else {
-        el.textContent = '';
-    }
+    el.textContent = formatSignalConfigText(SIGNAL_CONFIG.suits, SIGNAL_CONFIG.ranks);
+}
+
+// 訊號牌組合顯示文字：全花色只列數字，非全花色才顯示花色
+function formatSignalConfigText(suits, ranks) {
+    const suitsArr = Array.isArray(suits) ? suits : [];
+    const ranksArr = Array.isArray(ranks) ? ranks : [];
+    if (!suitsArr.length || !ranksArr.length) return '未設定';
+    const suitStr = suitsArr.length === 4 ? '' : suitsArr.join('') + ' ';
+    return `${suitStr}${ranksArr.join(' ')}`;
 }
 
 // 根據傳入設定或 UI 直接更新訊號配置
@@ -843,9 +850,7 @@ function syncUiFromSignalConfig() {
     // 更新訊號牌設定顯示文字
     const configEl = document.getElementById('signalConfigDisplay');
     if (configEl) {
-        const suitStr = suits.join('');
-        const rankStr = ranks.join(',');
-        configEl.textContent = (suitStr && rankStr) ? `${suitStr} × ${rankStr}` : '';
+        configEl.textContent = formatSignalConfigText(suits, ranks);
     }
 }
 
@@ -2383,62 +2388,37 @@ function updateRecoveryDisplay(result) {
     if (!display) return;
 
     if (!result) {
-        display.classList.add('hidden');
+        display.classList.add('is-empty');
+        display.classList.remove('hidden');
         return;
     }
 
-    // 計算評分
-    const avgRounds = parseFloat(result.avgRounds);
-    let rating = 0;
-    
-    let ratingText = '';
-    let ratingColor = '';
-
-    if (avgRounds <= 3) {
-        rating = 5;
-        ratingText = '極佳';
-        ratingColor = '#22c55e';
-    } else if (avgRounds <= 4) {
-        rating = 4;
-        ratingText = '良好';
-        ratingColor = '#84cc16';
-    } else if (avgRounds <= 5) {
-        rating = 3;
-        ratingText = '普通';
-        ratingColor = '#eab308';
-    } else {
-        rating = 2;
-        ratingText = '較慢';
-        ratingColor = '#ef4444';
-    }
-
-    const stars = '⭐'.repeat(rating);
-    
     // 計算各區間佔比
     const total = result.totalCards;
     const dist = result.distribution || {};
-    const pct1to5 = total > 0 ? ((dist.range1to5 || 0) / total * 100).toFixed(1) : '0.0';
-    const pct6to10 = total > 0 ? ((dist.range6to10 || 0) / total * 100).toFixed(1) : '0.0';
-    const pct11to15 = total > 0 ? ((dist.range11to15 || 0) / total * 100).toFixed(1) : '0.0';
-    const pct16plus = total > 0 ? ((dist.range16plus || 0) / total * 100).toFixed(1) : '0.0';
+    const n1 = dist.range1to5 || 0;
+    const n6 = dist.range6to10 || 0;
+    const n11 = dist.range11to15 || 0;
+    const n16 = dist.range16plus || 0;
+    const pct1to5 = total > 0 ? ((n1 / total) * 100).toFixed(1) : '0.0';
+    const pct6to10 = total > 0 ? ((n6 / total) * 100).toFixed(1) : '0.0';
+    const pct11to15 = total > 0 ? ((n11 / total) * 100).toFixed(1) : '0.0';
+    const pct16plus = total > 0 ? ((n16 / total) * 100).toFixed(1) : '0.0';
 
-    // 更新 DOM
-    document.getElementById('recoveryAvg').textContent = `平均 ${result.avgRounds} 局`;
-    document.getElementById('recoveryStars').textContent = stars;
-    
-    const ratingTextEl = document.getElementById('recoveryRatingText');
-    if (ratingTextEl) {
-        ratingTextEl.textContent = ratingText;
-        ratingTextEl.style.color = ratingColor;
-    }
+    // 更新 DOM — 回復分析
+    const avgEl = document.getElementById('recoveryAvg');
+    if (avgEl) avgEl.textContent = `平均 ${result.avgRounds} 局`;
 
-    document.getElementById('recoveryAvgDetail').textContent = `${result.avgCards} 張 / ${result.avgRounds} 局`;
-    document.getElementById('recoveryMaxDetail').textContent = `${result.maxCards} 張 / ${result.maxRounds} 局`;
+    const avgDetailEl = document.getElementById('recoveryAvgDetail');
+    if (avgDetailEl) avgDetailEl.textContent = `${result.avgCards} 張 / ${result.avgRounds} 局`;
+    const maxDetailEl = document.getElementById('recoveryMaxDetail');
+    if (maxDetailEl) maxDetailEl.textContent = `${result.maxCards} 張 / ${result.maxRounds} 局`;
     const maxCardsLeftEl = document.getElementById('recoveryMaxCardsLeft');
     const maxRoundsLeftEl = document.getElementById('recoveryMaxRoundsLeft');
     if (maxCardsLeftEl) maxCardsLeftEl.textContent = ` ${result.maxCards} `;
     if (maxRoundsLeftEl) maxRoundsLeftEl.textContent = ` ${result.maxRounds} `;
-    document.getElementById('recoveryImmediateDetail').textContent = `${result.immediateRecovery} 個 (${result.immediatePercent}%)`;
+    const immEl = document.getElementById('recoveryImmediateDetail');
+    if (immEl) immEl.textContent = `${result.immediateRecovery} 個 (${result.immediatePercent}%)`;
     const maxIdxEl = document.getElementById('recoveryMaxIndexDetail');
     if (maxIdxEl) {
         const cardPosition = (typeof result.maxCardIdx === 'number' ? result.maxCardIdx + 1 : null);
@@ -2453,23 +2433,45 @@ function updateRecoveryDisplay(result) {
             maxIdxEl.textContent = '第 -- 張';
         }
     }
-    
-    document.getElementById('recoveryRange1to5').textContent = `${dist.range1to5 || 0} 張 (${pct1to5}%)`;
-    document.getElementById('recoveryRange6to10').textContent = `${dist.range6to10 || 0} 張 (${pct6to10}%)`;
-    document.getElementById('recoveryRange11to15').textContent = `${dist.range11to15 || 0} 張 (${pct11to15}%)`;
-    document.getElementById('recoveryRange16plus').textContent = `${dist.range16plus || 0} 張 (${pct16plus}%)`;
 
+    // 回復區間：百分比文字 + 條寬
+    const setRange = (valId, barId, text, pct) => {
+        const valEl = document.getElementById(valId);
+        const barEl = document.getElementById(barId);
+        if (valEl) valEl.textContent = text;
+        if (barEl) barEl.style.width = `${Math.max(0, Math.min(100, parseFloat(pct) || 0))}%`;
+    };
+    setRange('recoveryRange1to5', 'rangeBar1to5', `${pct1to5}%`, pct1to5);
+    setRange('recoveryRange6to10', 'rangeBar6to10', `${pct6to10}%`, pct6to10);
+    setRange('recoveryRange11to15', 'rangeBar11to15', `${pct11to15}%`, pct11to15);
+    setRange('recoveryRange16plus', 'rangeBar16plus', `${pct16plus}%`, pct16plus);
+
+    // 張數分布柱狀圖
     const roundStats = getRoundCardCountStats((typeof currentRounds !== 'undefined') ? currentRounds : []);
     const totalRounds = roundStats.totalRounds;
-    const fourPct = totalRounds > 0 ? ((roundStats.fourCardCount / totalRounds) * 100).toFixed(1) : '0.0';
-    const fivePct = totalRounds > 0 ? ((roundStats.fiveCardCount / totalRounds) * 100).toFixed(1) : '0.0';
-    const sixPct = totalRounds > 0 ? ((roundStats.sixCardCount / totalRounds) * 100).toFixed(1) : '0.0';
+    const fourPct = totalRounds > 0 ? ((roundStats.fourCardCount / totalRounds) * 100) : 0;
+    const fivePct = totalRounds > 0 ? ((roundStats.fiveCardCount / totalRounds) * 100) : 0;
+    const sixPct = totalRounds > 0 ? ((roundStats.sixCardCount / totalRounds) * 100) : 0;
+    const maxCardPct = Math.max(fourPct, fivePct, sixPct, 1);
     const fourEl = document.getElementById('recoveryFourCardRate');
     const fiveEl = document.getElementById('recoveryFiveCardRate');
     const sixEl = document.getElementById('recoverySixCardRate');
-    if (fourEl) fourEl.textContent = `${roundStats.fourCardCount} 局 (${fourPct}%)`;
-    if (fiveEl) fiveEl.textContent = `${roundStats.fiveCardCount} 局 (${fivePct}%)`;
-    if (sixEl) sixEl.textContent = `${roundStats.sixCardCount} 局 (${sixPct}%)`;
+    if (fourEl) fourEl.textContent = `${roundStats.fourCardCount}\n${fourPct.toFixed(0)}%`;
+    if (fiveEl) fiveEl.textContent = `${roundStats.fiveCardCount}\n${fivePct.toFixed(0)}%`;
+    if (sixEl) sixEl.textContent = `${roundStats.sixCardCount}\n${sixPct.toFixed(0)}%`;
+    // 用 innerHTML 分行顯示更乾淨
+    if (fourEl) fourEl.innerHTML = `${roundStats.fourCardCount}<br><span class="cc-pct">${fourPct.toFixed(0)}%</span>`;
+    if (fiveEl) fiveEl.innerHTML = `${roundStats.fiveCardCount}<br><span class="cc-pct">${fivePct.toFixed(0)}%</span>`;
+    if (sixEl) sixEl.innerHTML = `${roundStats.sixCardCount}<br><span class="cc-pct">${sixPct.toFixed(0)}%</span>`;
+    const bar4 = document.getElementById('barFourCards');
+    const bar5 = document.getElementById('barFiveCards');
+    const bar6 = document.getElementById('barSixCards');
+    if (bar4) bar4.style.height = `${(fourPct / maxCardPct) * 100}%`;
+    if (bar5) bar5.style.height = `${(fivePct / maxCardPct) * 100}%`;
+    if (bar6) bar6.style.height = `${(sixPct / maxCardPct) * 100}%`;
+
+    // 外環：4/5/6 張分布（與內圈莊閒和不同色系）
+    updateCardRing(roundStats.fourCardCount, roundStats.fiveCardCount, roundStats.sixCardCount);
 
     // 對調莊6統計
     const rounds = (typeof currentRounds !== 'undefined') ? currentRounds : [];
@@ -2503,6 +2505,7 @@ function updateRecoveryDisplay(result) {
     if (banker6RoundsEl) banker6RoundsEl.textContent = banker6List.length > 0 ? banker6List.join(', ') : '--';
 
     display.classList.remove('hidden');
+    display.classList.remove('is-empty');
 }
 
 // 舊函數保留但改為空操作或直接呼叫更新
@@ -2591,6 +2594,33 @@ function updateStats(data) {
     });
 }
 
+function updateCardRing(four, five, six) {
+    const ring = document.getElementById('cardRing');
+    const total = (four || 0) + (five || 0) + (six || 0);
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const pct = n => total > 0 ? (n / total) * 100 : 0;
+
+    set('ringFourCount', four || 0);
+    set('ringFiveCount', five || 0);
+    set('ringSixCount', six || 0);
+    set('ringFourPct', `${pct(four).toFixed(0)}%`);
+    set('ringFivePct', `${pct(five).toFixed(0)}%`);
+    set('ringSixPct', `${pct(six).toFixed(0)}%`);
+
+    if (!ring) return;
+    if (total <= 0) {
+        ring.style.background = 'rgba(255,255,255,0.06)';
+        return;
+    }
+    const e4 = pct(four) * 3.6;
+    const e5 = e4 + pct(five) * 3.6;
+    ring.style.background = `conic-gradient(
+        var(--ring-c4) 0deg ${e4}deg,
+        var(--ring-c5) ${e4}deg ${e5}deg,
+        var(--ring-c6) ${e5}deg 360deg
+    )`;
+}
+
 function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount }) {
     const circleBankerLabel = document.getElementById('circleBankerLabel');
     const circlePlayerLabel = document.getElementById('circlePlayerLabel');
@@ -2599,18 +2629,44 @@ function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount })
     const hudBankerBar = document.getElementById('hudBankerBar');
     const hudPlayerBar = document.getElementById('hudPlayerBar');
     const hudTieBar = document.getElementById('hudTieBar');
+    const bankerPctEl = document.getElementById('circleBankerPct');
+    const playerPctEl = document.getElementById('circlePlayerPct');
+    const tiePctEl = document.getElementById('circleTiePct');
+    const donut = document.getElementById('outcomeDonut');
 
-    if (circleTotal) {
-        circleTotal.textContent = totalRounds > 0 ? totalRounds : '0';
-    }
+    const total = totalRounds > 0 ? totalRounds : 0;
+    if (circleTotal) circleTotal.textContent = String(total);
     if (circleBankerLabel) circleBankerLabel.textContent = bankerCount;
     if (circlePlayerLabel) circlePlayerLabel.textContent = playerCount;
     if (circleTieLabel) circleTieLabel.textContent = tieCount;
 
+    const bPct = total > 0 ? (bankerCount / total) * 100 : 0;
+    const pPct = total > 0 ? (playerCount / total) * 100 : 0;
+    const tPct = total > 0 ? (tieCount / total) * 100 : 0;
+    if (bankerPctEl) bankerPctEl.textContent = `${bPct.toFixed(0)}%`;
+    if (playerPctEl) playerPctEl.textContent = `${pPct.toFixed(0)}%`;
+    if (tiePctEl) tiePctEl.textContent = `${tPct.toFixed(0)}%`;
+
+    // 內圈實心圓餅：莊閒和
+    if (donut) {
+        if (total <= 0) {
+            donut.style.background = 'rgba(255,255,255,0.06)';
+        } else {
+            const bEnd = bPct * 3.6;
+            const pEnd = bEnd + pPct * 3.6;
+            donut.style.background = `conic-gradient(
+                var(--pie-banker) 0deg ${bEnd}deg,
+                var(--pie-player) ${bEnd}deg ${pEnd}deg,
+                var(--pie-tie) ${pEnd}deg 360deg
+            )`;
+        }
+    }
+
+    // 相容舊 HUD bar（若仍存在）
     const maxCount = Math.max(bankerCount, playerCount, tieCount, 1);
-    if (hudBankerBar) hudBankerBar.style.width = `${(bankerCount / maxCount) * 100}%`;
-    if (hudPlayerBar) hudPlayerBar.style.width = `${(playerCount / maxCount) * 100}%`;
-    if (hudTieBar) hudTieBar.style.width = `${(tieCount / maxCount) * 100}%`;
+    if (hudBankerBar && hudBankerBar.style) hudBankerBar.style.width = `${(bankerCount / maxCount) * 100}%`;
+    if (hudPlayerBar && hudPlayerBar.style) hudPlayerBar.style.width = `${(playerCount / maxCount) * 100}%`;
+    if (hudTieBar && hudTieBar.style) hudTieBar.style.width = `${(tieCount / maxCount) * 100}%`;
 }
 
 // 將一局的卡片轉成「A♠ ...」的字串備用

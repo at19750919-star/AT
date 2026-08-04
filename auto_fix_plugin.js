@@ -363,12 +363,6 @@
         btn.id = 'btnAutoFix';
         btn.className = 'tool-btn';
         btn.textContent = '一鍵修正';
-        btn.style.cssText = `
-            background: linear-gradient(180deg, #10b981, #059669) !important;
-            color: white !important;
-            font-weight: bold;
-            border: 1px solid #047857 !important;
-        `;
 
         btn.addEventListener('click', async function() {
             btn.disabled = true;

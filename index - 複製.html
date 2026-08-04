@@ -16,9 +16,10 @@
     <!-- Google Fonts 字體載入 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=23">
-    <link rel="stylesheet" href="casino_theme.css?v=3">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Noto+Serif+TC:wght@400;500;600;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+
+
 </head>
 
 <body>
@@ -49,9 +50,11 @@
             </div>
         </header>
 
-        <!-- ===== 指令列：訊號牌（最重要）+ 生成 + 條件 ===== -->
-        <div class="top-controls command-bar">
+        <!-- ===== 第一行：花色 + 訊號張數 + 清空 + GO + 圓餅圖 + 切牌 ===== -->
+        <div class="top-controls">
+            <!-- 設定卡：三欄 = 訊號牌 / 生成條件 / 動作 -->
             <div class="panel settings-card">
+                <!-- 欄1：訊號牌（目前組合 + 花色 + 數字） -->
                 <div class="sc-col sc-signal">
                     <div class="signal-banner">
                         <span id="signalConfigDisplay" class="signal-config-display"></span>
@@ -85,7 +88,7 @@
                         <a class="rank-button" data-value="K"><span class="rank-value">K</span></a>
                     </div>
                     <div class="sc-actions">
-                        <button class="generate-stop-btn generate-primary" id="generateBtn">生成</button>
+                        <button class="generate-stop-btn" id="generateBtn">生成</button>
                         <div class="sub-actions">
                             <button type="button" id="stopGenerateBtn" class="generate-stop-btn" disabled
                                 onclick="stopGenerateShoe()">停止</button>
@@ -99,8 +102,8 @@
                     </div>
                 </div>
 
+                <!-- 欄2：生成條件 -->
                 <div class="sc-col recovery-check-inputs">
-                    <div class="sc-section-label">生成條件</div>
                     <div class="recovery-input-item">
                         <label class="recovery-input-label">平均上限</label>
                         <input type="number" id="avgRecoveryLimit" class="recovery-input" step="0.1" min="0" value="0"
@@ -137,132 +140,87 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- ===== 數據列：回復分析+消耗 | 莊閒和可視化 | 張數分布可視化 ===== -->
-        <div class="metrics-row">
-            <!-- 回復分析 + 回復消耗（同一張卡） -->
-            <div id="recoveryDisplay" class="panel recovery-display is-empty">
-                <div class="recovery-pair">
-                    <div class="recovery-block recovery-analysis">
-                        <div class="viz-title">回復分析</div>
-                        <div class="main-stat"><span id="recoveryAvg">-- 局</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">立即回復</span><span id="recoveryImmediateDetail">--</span></div>
-                        <div class="range-bars" aria-label="回復局數分布">
-                            <div class="range-bar-row" title="1~5局">
-                                <span class="range-label">1–5</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar1to5"></div></div>
-                                <span class="range-val" id="recoveryRange1to5">--</span>
-                            </div>
-                            <div class="range-bar-row" title="6~10局">
-                                <span class="range-label">6–10</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar6to10"></div></div>
-                                <span class="range-val" id="recoveryRange6to10">--</span>
-                            </div>
-                            <div class="range-bar-row" title="11~15局">
-                                <span class="range-label">11–15</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar11to15"></div></div>
-                                <span class="range-val" id="recoveryRange11to15">--</span>
-                            </div>
-                            <div class="range-bar-row" title="16局以上">
-                                <span class="range-label">16+</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar16plus"></div></div>
-                                <span class="range-val" id="recoveryRange16plus">--</span>
-                            </div>
-                        </div>
+            </div>
+
+            <!-- 卡片4：回復分析顯示 -->
+            <div id="recoveryDisplay" class="panel recovery-display hidden">
+                <div class="left-col">
+                    <div class="main-stat">
+                        <span id="recoveryAvg">3.9 局</span>
                     </div>
-                    <div class="recovery-block recovery-cost">
-                        <div class="viz-title">回復消耗</div>
-                        <div class="cost-hero">
-                            <div class="cost-item">
-                                <span class="cost-label">最大消耗</span>
-                                <span class="cost-value"><span id="recoveryMaxCardsLeft">--</span>張</span>
-                                <span class="cost-value"><span id="recoveryMaxRoundsLeft">--</span>局</span>
-                            </div>
-                        </div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">平均消耗</span><span id="recoveryAvgDetail">--</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">最大消耗</span><span id="recoveryMaxDetail">--</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">最大點</span><span id="recoveryMaxIndexDetail">--</span></div>
-                        <div class="b6-meta">
-                            <div class="sub-stat-row"><span class="sub-stat-label">對調莊6</span><span id="recoverySwapB6Count">--</span></div>
-                            <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoverySwapB6Rounds">--</span></div>
-                            <div class="sub-stat-row"><span class="sub-stat-label">莊6點贏</span><span id="recoveryBanker6Count">--</span></div>
-                            <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoveryBanker6Rounds">--</span></div>
-                        </div>
+                    <div class="max-cost-row">最大消耗<span id="recoveryMaxCardsLeft">--</span>張</div>
+                    <div class="max-cost-row">最大消耗<span id="recoveryMaxRoundsLeft">--</span>局</div>
+                </div>
+                <div class="right-col">
+                    <!-- 隱藏：平均消耗、立即回復、最大消耗、佔比 -->
+                    <div class="sub-stat-row"><span class="sub-stat-label">平均消耗:</span><span id="recoveryAvgDetail">-- 張 / -- 局</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">1~5局佔比:</span><span id="recoveryRange1to5">--%</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">立即回復:</span><span id="recoveryImmediateDetail">-- 個 (--%)</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">6~10局佔比:</span><span id="recoveryRange6to10">--%</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">最大消耗:</span><span id="recoveryMaxDetail">-- 張 / -- 局</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">11~15局佔比:</span><span id="recoveryRange11to15">--%</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">最大消耗點:</span><span id="recoveryMaxIndexDetail">第 -- 張</span></div>
+                    <div class="sub-stat-row"><span class="sub-stat-label">16局以上:</span><span id="recoveryRange16plus">--%</span></div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">4張局:</span>
+                        <span id="recoveryFourCardRate">-- 局 (--%)</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">5張局:</span>
+                        <span id="recoveryFiveCardRate">-- 局 (--%)</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">6張局:</span>
+                        <span id="recoverySixCardRate">-- 局 (--%)</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">對調莊6:</span>
+                        <span id="recoverySwapB6Count">-- 局</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">局號:</span>
+                        <span id="recoverySwapB6Rounds">--</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">莊6點贏:</span>
+                        <span id="recoveryBanker6Count">-- 局</span>
+                    </div>
+                    <div class="sub-stat-row">
+                        <span class="sub-stat-label">局號:</span>
+                        <span id="recoveryBanker6Rounds">--</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 莊閒和 + 張數分布：合成圓餅（內實心=莊閒和，外環=4/5/6張） -->
-            <div class="panel outcome-viz" id="resultCircle">
-                <div class="viz-title">莊閒和 ／ 張數分布<span class="viz-total"><span id="circleTotal">0</span> 局</span></div>
-                <div class="outcome-body">
-                    <div class="combo-chart">
-                        <div class="card-ring" id="cardRing"></div>
-                        <div class="outcome-donut" id="outcomeDonut"></div>
+            <!-- 卡片5：HUD 莊閒和統計條 -->
+            <div class="panel hud-bars" id="resultCircle">
+                <div class="hud-bar-row">
+                    <span class="hud-bar-label hud-banker">莊</span>
+                    <div class="hud-bar-track">
+                        <div class="hud-bar-fill hud-banker-fill" id="hudBankerBar"></div>
                     </div>
-                    <div class="outcome-legend">
-                        <div class="leg-row leg-banker">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">莊</span>
-                            <span class="leg-count" id="circleBankerLabel">0</span>
-                            <span class="leg-pct" id="circleBankerPct">0%</span>
-                        </div>
-                        <div class="leg-row leg-player">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">閒</span>
-                            <span class="leg-count" id="circlePlayerLabel">0</span>
-                            <span class="leg-pct" id="circlePlayerPct">0%</span>
-                        </div>
-                        <div class="leg-row leg-tie">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">和</span>
-                            <span class="leg-count" id="circleTieLabel">0</span>
-                            <span class="leg-pct" id="circleTiePct">0%</span>
-                        </div>
-                        <div class="leg-sep"></div>
-                        <div class="leg-row leg-c4">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">4張</span>
-                            <span class="leg-count" id="ringFourCount">0</span>
-                            <span class="leg-pct" id="ringFourPct">0%</span>
-                        </div>
-                        <div class="leg-row leg-c5">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">5張</span>
-                            <span class="leg-count" id="ringFiveCount">0</span>
-                            <span class="leg-pct" id="ringFivePct">0%</span>
-                        </div>
-                        <div class="leg-row leg-c6">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">6張</span>
-                            <span class="leg-count" id="ringSixCount">0</span>
-                            <span class="leg-pct" id="ringSixPct">0%</span>
-                        </div>
+                    <span class="hud-bar-value hud-banker" id="circleBankerLabel">0</span>
+                </div>
+                <div class="hud-bar-row">
+                    <span class="hud-bar-label hud-player">閒</span>
+                    <div class="hud-bar-track">
+                        <div class="hud-bar-fill hud-player-fill" id="hudPlayerBar"></div>
                     </div>
+                    <span class="hud-bar-value hud-player" id="circlePlayerLabel">0</span>
                 </div>
-                <!-- 相容舊 HUD 更新邏輯的隱藏元素 -->
-                <div class="hud-compat-hidden" aria-hidden="true">
-                    <div id="hudBankerBar"></div>
-                    <div id="hudPlayerBar"></div>
-                    <div id="hudTieBar"></div>
+                <div class="hud-bar-row">
+                    <span class="hud-bar-label hud-tie">和</span>
+                    <div class="hud-bar-track">
+                        <div class="hud-bar-fill hud-tie-fill" id="hudTieBar"></div>
+                    </div>
+                    <span class="hud-bar-value hud-tie" id="circleTieLabel">0</span>
                 </div>
-            </div>
-
-            <!-- 張數分布已併入上面的合成圓餅；保留隱藏元素相容舊更新邏輯 -->
-            <div class="hud-compat-hidden" aria-hidden="true">
-                <div id="barFourCards"></div>
-                <div id="barFiveCards"></div>
-                <div id="barSixCards"></div>
-                <div id="recoveryFourCardRate"></div>
-                <div id="recoveryFiveCardRate"></div>
-                <div id="recoverySixCardRate"></div>
-            </div>
-
-            <!-- 切牌 / 定位（次要工具） -->
-            <div class="panel util-panel">
-                <div class="viz-title">切牌 / 定位</div>
+                <div class="hud-total-row">
+                    <span class="hud-total-label">TOTAL</span>
+                    <span class="hud-total-value" id="circleTotal">0</span>
+                </div>
+                <!-- 切牌 / 定位（從原獨立卡片移入） -->
                 <div class="cut-card">
                     <div class="cut-pair">
                         <input id="cutPos" type="number" min="0" placeholder="張數">
@@ -274,10 +232,15 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 卡片7：訊號摘要表（從右下角搬到頂部） -->
+            <div class="panel signal-summary" id="signalSummary"></div>
         </div>
 
-        <!-- ===== 次要列：違規 + 缺牌摘要 ===== -->
+        <!-- ===== 第二行：違規統計 ===== -->
         <div class="rank-selector-row violation-row">
+
+            <!-- 違規統計區域 -->
             <div class="violation-stats">
                 <div class="violation-card">
                     <div class="violation-label">訊號牌違規</div>
@@ -300,7 +263,6 @@
                     <div class="violation-detail" id="otherViolationDetail">無</div>
                 </div>
             </div>
-            <div class="panel signal-summary" id="signalSummary"></div>
         </div>
 
 
@@ -517,7 +479,7 @@
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
     <script src="signals.js?v=12"></script>
-    <script src="signals_ui.js?v=16"></script>
+    <script src="signals_ui.js?v=14"></script>
     <script src="smart_reorder_dialog.js?v=2"></script>
     <script src="swap_preview.js?v=2"></script>
     <script src="traverse.js?v=2"></script>
@@ -641,47 +603,6 @@
         <div class="generating-spinner"></div>
         <div class="generating-text" id="generatingText">生成中...</div>
     </div>
-
-    <!-- Tweaks 面板 -->
-    <div id="tweaksRoot"></div>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script>
-        const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-            "donutSize": 108
-        }/*EDITMODE-END*/;
-        function mountTweaks() {
-            const e = React.createElement;
-            function AppTweaks() {
-                const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-                React.useEffect(() => {
-                    let el = document.getElementById('tweakStyle');
-                    if (!el) { el = document.createElement('style'); el.id = 'tweakStyle'; document.head.appendChild(el); }
-                    const size = t.donutSize;
-                    const ring = Math.max(12, Math.round(size * 0.16));
-                    el.textContent =
-                        '.combo-chart{width:' + size + 'px !important;height:' + size + 'px !important}' +
-                        '.outcome-donut{inset:' + ring + 'px !important}';
-                }, [t.donutSize]);
-                return e(TweaksPanel, null,
-                    e(TweakSection, { label: '莊閒和比例' }),
-                    e(TweakSlider, {
-                        label: '圓餅圖大小', value: t.donutSize, min: 80, max: 200, step: 4, unit: 'px',
-                        onChange: (v) => setTweak('donutSize', v)
-                    })
-                );
-            }
-            ReactDOM.createRoot(document.getElementById('tweaksRoot')).render(e(AppTweaks));
-        }
-        window.addEventListener('load', function () {
-            fetch('tweaks-panel.jsx').then(r => r.text()).then(function (src) {
-                const out = Babel.transform(src, { presets: [['react', { runtime: 'classic', pragma: 'React.createElement', pragmaFrag: 'React.Fragment' }]], filename: 'tweaks-panel.jsx' }).code;
-                (new Function(out))();
-                mountTweaks();
-            }).catch(err => console.error('[tweaks] 載入失敗', err));
-        });
-    </script>
 </body>
 
 </html>

@@ -1,0 +1,157 @@
+/* ============================================================
+   PRIORITY: A2 + 花色撲克（最高權重，檔尾覆蓋）
+   1) 訊號組合 = 全螢幕最大最明顯
+   2) 花色鈕 = 淺底撲克牌
+   ============================================================ */
+
+/* 訊號區：橫幅獨占第一列 */
+.sc-signal {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    grid-template-areas:
+        "banner banner banner"
+        "suits  ranks  actions" !important;
+    align-items: center !important;
+    gap: 10px 16px !important;
+}
+.sc-signal .signal-banner {
+    grid-area: banner !important;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 16px !important;
+    min-height: 72px !important;
+    padding: 4px 0 8px !important;
+    border-bottom: 1px solid rgba(139, 105, 20, 0.25) !important;
+}
+
+/* 全頁最大字：組合本身（A2 / ♥0 等） */
+.sc-signal .signal-banner .signal-config-display,
+.signal-banner .signal-config-display,
+#signalConfigDisplay.signal-config-display {
+    font-size: clamp(48px, 4.2vw, 80px) !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.04em !important;
+    font-family: var(--font-display), "Cinzel", "Noto Serif TC", serif !important;
+    color: #1a120a !important;
+    text-shadow: none !important;
+}
+
+/* 張數：次大但仍醒目 */
+.signal-count-suffix {
+    font-size: clamp(22px, 1.6vw, 32px) !important;
+    font-weight: 600 !important;
+    color: #5c4a32 !important;
+    font-family: var(--font-label), "Noto Sans TC", sans-serif !important;
+    white-space: nowrap !important;
+}
+.signal-count-suffix #signalCardCount,
+#signalCardCount {
+    font-size: clamp(36px, 2.8vw, 56px) !important;
+    font-weight: 700 !important;
+    color: #c41e3a !important;
+    font-family: var(--font-mono), "IBM Plex Mono", monospace !important;
+    text-shadow: none !important;
+}
+
+/* 花色：淺底撲克牌 */
+.suit-selector {
+    display: flex !important;
+    grid-template-columns: none !important;
+    gap: 8px !important;
+    align-items: center !important;
+}
+.suit-button,
+html[data-theme="light"] .suit-button,
+html[data-theme="light"] .sc-signal .suit-button {
+    width: 48px !important;
+    height: 68px !important;
+    min-width: 48px !important;
+    min-height: 68px !important;
+    border-radius: 6px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7f3ea 100%) !important;
+    border: 1px solid #c8b896 !important;
+    box-shadow:
+        0 1px 0 #fff,
+        0 2px 4px rgba(28, 20, 12, 0.18) !important;
+    transform: none !important;
+    animation: none !important;
+    filter: none !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    padding: 6px 0 0 7px !important;
+    position: relative !important;
+    cursor: pointer !important;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease !important;
+}
+.suit-button .suit-symbol,
+html[data-theme="light"] .suit-button .suit-symbol,
+html[data-theme="light"] .sc-signal .suit-button .suit-symbol {
+    font-size: 26px !important;
+    line-height: 1 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+    text-shadow: none !important;
+}
+/* 右下角鏡像小花色 */
+.suit-button::after {
+    content: attr(data-value) !important;
+    position: absolute !important;
+    right: 6px !important;
+    bottom: 5px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+    transform: rotate(180deg) !important;
+    opacity: 0.95 !important;
+    pointer-events: none !important;
+}
+.suit-button[data-value="♠"] .suit-symbol,
+.suit-button[data-value="♣"] .suit-symbol,
+.suit-button[data-value="♠"]::after,
+.suit-button[data-value="♣"]::after {
+    color: #1a120a !important;
+}
+.suit-button[data-value="♥"] .suit-symbol,
+.suit-button[data-value="♦"] .suit-symbol,
+.suit-button[data-value="♥"]::after,
+.suit-button[data-value="♦"]::after {
+    color: #c41e3a !important;
+}
+.suit-button:hover {
+    transform: translateY(-2px) !important;
+    border-color: #d4af37 !important;
+    box-shadow:
+        0 1px 0 #fff,
+        0 4px 10px rgba(28, 20, 12, 0.22) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #faf6ec 100%) !important;
+}
+/* 選中：保持淺牌面 + 金邊，不要黑底 */
+.suit-button.selected,
+.suit-button.selected[data-value="♥"],
+.suit-button.selected[data-value="♦"],
+html[data-theme="light"] .suit-button.selected,
+html[data-theme="light"] .suit-button.selected[data-value="♥"],
+html[data-theme="light"] .suit-button.selected[data-value="♦"] {
+    background: linear-gradient(180deg, #ffffff 0%, #f7f3ea 100%) !important;
+    border: 2px solid #d4af37 !important;
+    box-shadow:
+        0 0 0 2px rgba(212, 175, 55, 0.35),
+        0 3px 8px rgba(28, 20, 12, 0.2) !important;
+    transform: translateY(-1px) !important;
+    animation: none !important;
+    filter: none !important;
+}
+.suit-button.selected .suit-symbol,
+html[data-theme="light"] .suit-button.selected .suit-symbol,
+html[data-theme="light"] .suit-button.selected[data-value="♥"] .suit-symbol,
+html[data-theme="light"] .suit-button.selected[data-value="♦"] .suit-symbol {
+    text-shadow: none !important;
+}
+.suit-button.selected[data-value="♠"] .suit-symbol,
+.suit-button.selected[data-value="♣"] .suit-symbol {
+    color: #1a120a !important;
+}
+.suit-button.selected[data-value="♥"] .suit-symbol,
+.suit-button.selected[data-value="♦"] .suit-symbol {
+    color: #c41e3a !important;
+}

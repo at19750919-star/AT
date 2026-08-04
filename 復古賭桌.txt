@@ -1,3 +1,4 @@
+
 <html lang="zh-TW">
 
 <head>
@@ -18,7 +19,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=23">
-    <link rel="stylesheet" href="casino_theme.css?v=3">
 </head>
 
 <body>
@@ -194,13 +194,15 @@
                 </div>
             </div>
 
-            <!-- 莊閒和 + 張數分布：合成圓餅（內實心=莊閒和，外環=4/5/6張） -->
+            <!-- 莊閒和：甜甜圈可視化（取代數字條） -->
             <div class="panel outcome-viz" id="resultCircle">
-                <div class="viz-title">莊閒和 ／ 張數分布<span class="viz-total"><span id="circleTotal">0</span> 局</span></div>
+                <div class="viz-title">莊閒和比例</div>
                 <div class="outcome-body">
-                    <div class="combo-chart">
-                        <div class="card-ring" id="cardRing"></div>
-                        <div class="outcome-donut" id="outcomeDonut"></div>
+                    <div class="outcome-donut" id="outcomeDonut">
+                        <div class="outcome-donut-hole">
+                            <span class="donut-total" id="circleTotal">0</span>
+                            <span class="donut-unit">局</span>
+                        </div>
                     </div>
                     <div class="outcome-legend">
                         <div class="leg-row leg-banker">
@@ -221,25 +223,6 @@
                             <span class="leg-count" id="circleTieLabel">0</span>
                             <span class="leg-pct" id="circleTiePct">0%</span>
                         </div>
-                        <div class="leg-sep"></div>
-                        <div class="leg-row leg-c4">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">4張</span>
-                            <span class="leg-count" id="ringFourCount">0</span>
-                            <span class="leg-pct" id="ringFourPct">0%</span>
-                        </div>
-                        <div class="leg-row leg-c5">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">5張</span>
-                            <span class="leg-count" id="ringFiveCount">0</span>
-                            <span class="leg-pct" id="ringFivePct">0%</span>
-                        </div>
-                        <div class="leg-row leg-c6">
-                            <span class="leg-dot"></span>
-                            <span class="leg-name">6張</span>
-                            <span class="leg-count" id="ringSixCount">0</span>
-                            <span class="leg-pct" id="ringSixPct">0%</span>
-                        </div>
                     </div>
                 </div>
                 <!-- 相容舊 HUD 更新邏輯的隱藏元素 -->
@@ -250,14 +233,32 @@
                 </div>
             </div>
 
-            <!-- 張數分布已併入上面的合成圓餅；保留隱藏元素相容舊更新邏輯 -->
-            <div class="hud-compat-hidden" aria-hidden="true">
-                <div id="barFourCards"></div>
-                <div id="barFiveCards"></div>
-                <div id="barSixCards"></div>
-                <div id="recoveryFourCardRate"></div>
-                <div id="recoveryFiveCardRate"></div>
-                <div id="recoverySixCardRate"></div>
+            <!-- 張數分布：柱狀可視化 -->
+            <div class="panel cards-viz">
+                <div class="viz-title">張數分布</div>
+                <div class="cardcount-chart">
+                    <div class="cc-col">
+                        <div class="cc-bar-wrap">
+                            <div class="cc-bar" id="barFourCards"></div>
+                        </div>
+                        <div class="cc-name">4張</div>
+                        <div class="cc-val" id="recoveryFourCardRate">--</div>
+                    </div>
+                    <div class="cc-col">
+                        <div class="cc-bar-wrap">
+                            <div class="cc-bar" id="barFiveCards"></div>
+                        </div>
+                        <div class="cc-name">5張</div>
+                        <div class="cc-val" id="recoveryFiveCardRate">--</div>
+                    </div>
+                    <div class="cc-col">
+                        <div class="cc-bar-wrap">
+                            <div class="cc-bar" id="barSixCards"></div>
+                        </div>
+                        <div class="cc-name">6張</div>
+                        <div class="cc-val" id="recoverySixCardRate">--</div>
+                    </div>
+                </div>
             </div>
 
             <!-- 切牌 / 定位（次要工具） -->
@@ -517,7 +518,7 @@
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
     <script src="signals.js?v=12"></script>
-    <script src="signals_ui.js?v=16"></script>
+    <script src="signals_ui.js?v=15"></script>
     <script src="smart_reorder_dialog.js?v=2"></script>
     <script src="swap_preview.js?v=2"></script>
     <script src="traverse.js?v=2"></script>
@@ -641,47 +642,6 @@
         <div class="generating-spinner"></div>
         <div class="generating-text" id="generatingText">生成中...</div>
     </div>
-
-    <!-- Tweaks 面板 -->
-    <div id="tweaksRoot"></div>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script>
-        const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-            "donutSize": 108
-        }/*EDITMODE-END*/;
-        function mountTweaks() {
-            const e = React.createElement;
-            function AppTweaks() {
-                const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-                React.useEffect(() => {
-                    let el = document.getElementById('tweakStyle');
-                    if (!el) { el = document.createElement('style'); el.id = 'tweakStyle'; document.head.appendChild(el); }
-                    const size = t.donutSize;
-                    const ring = Math.max(12, Math.round(size * 0.16));
-                    el.textContent =
-                        '.combo-chart{width:' + size + 'px !important;height:' + size + 'px !important}' +
-                        '.outcome-donut{inset:' + ring + 'px !important}';
-                }, [t.donutSize]);
-                return e(TweaksPanel, null,
-                    e(TweakSection, { label: '莊閒和比例' }),
-                    e(TweakSlider, {
-                        label: '圓餅圖大小', value: t.donutSize, min: 80, max: 200, step: 4, unit: 'px',
-                        onChange: (v) => setTweak('donutSize', v)
-                    })
-                );
-            }
-            ReactDOM.createRoot(document.getElementById('tweaksRoot')).render(e(AppTweaks));
-        }
-        window.addEventListener('load', function () {
-            fetch('tweaks-panel.jsx').then(r => r.text()).then(function (src) {
-                const out = Babel.transform(src, { presets: [['react', { runtime: 'classic', pragma: 'React.createElement', pragmaFrag: 'React.Fragment' }]], filename: 'tweaks-panel.jsx' }).code;
-                (new Function(out))();
-                mountTweaks();
-            }).catch(err => console.error('[tweaks] 載入失敗', err));
-        });
-    </script>
 </body>
 
 </html>
