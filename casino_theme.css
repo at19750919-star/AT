@@ -400,14 +400,14 @@ html[data-theme="light"] .metrics-row > .panel {
 
 /* ── 合成圓餅：外環=張數分布，內實心=莊閒和 ── */
 :root {
-    /* 內圈：莊閒和 —— 紅 / 藍 / 金 */
-    --pie-banker: #bc4a56;
-    --pie-player: #5c8db8;
-    --pie-tie:    #d4af37;
-    /* 外環：4/5/6 張 —— 紫 / 青綠 / 橘（刻意跟內圈不同色系） */
-    --ring-c4: #8a63d2;
-    --ring-c5: #2fa88a;
-    --ring-c6: #e0863c;
+    /* 內圈：莊閒和 —— 賭桌紅 / 鋼藍 / 金 */
+    --pie-banker: #a8202f;
+    --pie-player: #2a6690;
+    --pie-tie:    #e0b93c;
+    /* 外環：4/5/6 張 —— 同色系（紫）淺→深，6張最深 */
+    --ring-c4: #b39ddb;
+    --ring-c5: #7e57c2;
+    --ring-c6: #452a80;
 }
 
 .outcome-body {
@@ -426,24 +426,280 @@ html[data-theme="light"] .metrics-row > .panel {
 .outcome-legend { flex: 1 1 auto !important; min-width: 0 !important; gap: 5px !important; }
 .leg-row { flex-wrap: nowrap !important; white-space: nowrap !important; }
 .leg-name { white-space: nowrap !important; }
+/* 外環：外緣包金邊 + 內緣金線，像籌碼盤 */
 .card-ring {
     position: absolute !important;
     inset: 0 !important;
     border-radius: 50% !important;
-    border: 1px solid var(--hair) !important;
-    box-shadow: 0 0 0 3px rgba(0,0,0,.2) !important;
+    border: none !important;
     background: rgba(255,255,255,.06);
+    box-shadow:
+        0 0 0 2px #d4af37,
+        0 0 0 3px rgba(0,0,0,.45),
+        0 0 14px rgba(212,175,55,.28),
+        0 4px 12px rgba(0,0,0,.45) !important;
 }
+/* 移除「回復分析 / 回復消耗」標籤 */
+.recovery-block > .viz-title { display: none !important; }
+
+/* 最大消耗：張 / 局 水平並排 */
+.cost-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+}
+.cost-item .cost-label {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    display: inline-block !important;
+    margin-right: auto !important;
+}
+.cost-item .cost-value {
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+    font-size: 13px !important;
+    line-height: 1.1 !important;
+}
+/* 主要數字（張數 / 局數）放大 */
+.cost-item .cost-value b {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    margin-right: 1px !important;
+}
+/* 括號內是「第幾張 / 第幾局」，小字弱化 */
+.cost-item .cost-value i {
+    font-style: normal !important;
+    font-size: 12px !important;
+    color: rgba(236,215,168,.6) !important;
+    margin-left: 2px !important;
+}
+.cost-hero { width: 100% !important; }
+.cost-item { width: 100% !important; font-size: 13px !important; }
+.cost-item .cost-value + .cost-value::before {
+    content: '/ ' !important;
+    color: rgba(236,215,168,.55) !important;
+    margin-right: 4px !important;
+}
+
+/* 局號預設收起，滑鼠移到該項才展開 */
+.b6-item .b6-rounds {
+    display: none !important;
+}
+.b6-item:hover .b6-rounds {
+    display: flex !important;
+}
+.b6-item > .sub-stat-row:first-child { cursor: default !important; }
+
+/* 平均 vs 最大 消耗對比條 */
+.cost-compare { margin: 6px 0 8px !important; }
+.cc-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 3px 0 !important;
+}
+.cc-name {
+    flex: 0 0 auto !important;
+    width: 28px !important;
+    font-size: 11px !important;
+    letter-spacing: 1px !important;
+    color: rgba(236,215,168,.75) !important;
+}
+.cc-track {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 10px !important;
+    border-radius: 5px !important;
+    background: rgba(0,0,0,.35) !important;
+    border: 1px solid rgba(212,175,55,.28) !important;
+    overflow: hidden !important;
+}
+.cc-bar { height: 100% !important; width: 0; transition: width .25s ease !important; }
+.cc-avg { background: #d4af37 !important; }
+.cc-max { background: #8a6a1e !important; }
+.cc-num {
+    flex: 0 0 auto !important;
+    font-family: var(--font-mono), monospace !important;
+    font-size: 11px !important;
+    color: var(--felt-ink) !important;
+    white-space: nowrap !important;
+}
+
+/* 回復分布甜甜圈：立即 / 1-5 / 6-10 / 11-15 / 16+（金色系 淺→深） */
+:root {
+    --rec-1: #f7ecc4;
+    --rec-2: #e6cd7d;
+    --rec-3: #d4af37;
+    --rec-4: #9c7c26;
+    --rec-5: #5e4a16;
+}
+.rec-chart {
+    position: relative !important;
+    width: 150px !important;
+    height: 150px !important;
+    margin: 8px auto 4px !important;
+}
+.rec-ring {
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,.06);
+    box-shadow:
+        0 0 0 2px #d4af37,
+        0 0 0 3px rgba(0,0,0,.45),
+        0 3px 10px rgba(0,0,0,.4) !important;
+}
+.rec-hole {
+    position: absolute !important;
+    inset: 42px !important;
+    border-radius: 50% !important;
+    background: #06241a !important;
+    box-shadow: 0 0 0 2px #d4af37, inset 0 2px 8px rgba(0,0,0,.5) !important;
+    z-index: 2 !important;
+}
+.rec-center {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    z-index: 3 !important;
+    pointer-events: none !important;
+    font-family: var(--font-display), "Cinzel", serif !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
+    color: var(--felt-ink) !important;
+    text-align: center !important;
+}
+.rec-center > span + span {
+    font-size: 13px !important;
+    color: rgba(236,215,168,.8) !important;
+}
+.pie-label-r1, .pie-label-r2, .pie-label-r3,
+.pie-label-r4, .pie-label-r5 { font-size: 11px !important; }
+
+/* 回復局數分布：堆疊單條（金色系 淺→深） */
+.range-stack { margin-top: 10px !important; }
+.rs-track {
+    display: flex !important;
+    width: 100% !important;
+    height: 16px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    background: rgba(0,0,0,.35) !important;
+    border: 1px solid rgba(212,175,55,.35) !important;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.45) !important;
+}
+.rs-seg { height: 100% !important; width: 0; transition: width .25s ease !important; }
+.rs-1 { background: #f0d98a !important; }
+.rs-2 { background: #d4af37 !important; }
+.rs-3 { background: #9c7c26 !important; }
+.rs-4 { background: #5e4a16 !important; }
+
+.rs-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px 12px !important;
+    margin-top: 7px !important;
+    font-size: 11px !important;
+    color: rgba(236,215,168,.75) !important;
+}
+.rs-key { display: inline-flex !important; align-items: center !important; gap: 4px !important; white-space: nowrap !important; }
+.rs-key::before {
+    content: '' !important;
+    width: 9px !important; height: 9px !important;
+    border-radius: 2px !important;
+    flex: 0 0 auto !important;
+}
+.rs-k1::before { background: #f0d98a !important; }
+.rs-k2::before { background: #d4af37 !important; }
+.rs-k3::before { background: #9c7c26 !important; }
+.rs-k4::before { background: #5e4a16 !important; }
+.rs-key b { font-weight: 700 !important; color: var(--felt-ink) !important; }
+
+/* 總局數：半透明浮水印，疊在圓餅正中央 */
+.chart-total {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    font-family: var(--font-display), "Cinzel", serif !important;
+    font-weight: 700 !important;
+    font-size: 58px !important;
+    line-height: 1 !important;
+    color: rgba(255, 248, 230, .30) !important;
+    text-shadow: 0 2px 6px rgba(0,0,0,.45) !important;
+}
+/* 「局」抽離文件流，數字才會真正置中 */
+.chart-total > i {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, 30px) !important;
+    font-style: normal !important;
+    font-size: 18px !important;
+    color: rgba(255, 248, 230, .24) !important;
+}
+
+/* 扇形上的數字 */
+.pie-labels {
+    position: absolute !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    z-index: 4 !important;
+}
+.pie-label {
+    position: absolute !important;
+    transform: translate(-50%, -50%) !important;
+    white-space: pre !important;
+    text-align: center !important;
+    line-height: 1.05 !important;
+    font-family: var(--font-mono), "IBM Plex Mono", monospace !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    text-shadow:
+        0 1px 2px rgba(0,0,0,.9),
+        0 0 4px rgba(0,0,0,.7) !important;
+}
+.pie-label-c4, .pie-label-c5, .pie-label-c6 { font-size: 11px !important; }
+
+/* 光澤：左上打光、下緣陰影，讓圓盤有厚度 */
+.combo-chart::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 50% !important;
+    pointer-events: none !important;
+    background:
+        radial-gradient(120% 90% at 30% 12%, rgba(255,255,255,.20) 0%, rgba(255,255,255,.05) 38%, transparent 62%),
+        radial-gradient(90% 70% at 50% 104%, rgba(0,0,0,.35) 0%, transparent 55%) !important;
+    z-index: 3 !important;
+}
+/* 內圈實心圓餅：夾一圈金線與底色溝，跟外環分開 */
 .outcome-donut {
     position: absolute !important;
-    inset: 24px !important;
+    inset: 26px !important;
     width: auto !important;
     height: auto !important;
     border-radius: 50% !important;
-    border: 2px solid #06241a !important;
-    box-shadow: 0 0 0 1px var(--hair) !important;
+    border: none !important;
     background: rgba(255,255,255,.06);
     background-image: none;
+    z-index: 2 !important;
+    box-shadow:
+        0 0 0 2px #06241a,
+        0 0 0 3px #d4af37,
+        inset 0 2px 8px rgba(0,0,0,.35) !important;
 }
 .outcome-donut-hole { display: none !important; }
 .viz-total {

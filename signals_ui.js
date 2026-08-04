@@ -2407,12 +2407,24 @@ function updateRecoveryDisplay(result) {
 
     // 更新 DOM — 回復分析
     const avgEl = document.getElementById('recoveryAvg');
-    if (avgEl) avgEl.textContent = `平均 ${result.avgRounds} 局`;
+    if (avgEl) avgEl.textContent = `${result.avgRounds} 局`;
+    const avgCardsEl = document.getElementById('recoveryAvgCards');
+    if (avgCardsEl) avgCardsEl.textContent = `${result.avgCards} 張`;
 
     const avgDetailEl = document.getElementById('recoveryAvgDetail');
     if (avgDetailEl) avgDetailEl.textContent = `${result.avgCards} 張 / ${result.avgRounds} 局`;
     const maxDetailEl = document.getElementById('recoveryMaxDetail');
     if (maxDetailEl) maxDetailEl.textContent = `${result.maxCards} 張 / ${result.maxRounds} 局`;
+
+    // 平均 vs 最大 對比條（以最大為 100%）
+    const ccAvg = document.getElementById('ccBarAvg');
+    const ccMax = document.getElementById('ccBarMax');
+    if (ccAvg && ccMax) {
+        const a = parseFloat(result.avgCards) || 0;
+        const m = parseFloat(result.maxCards) || 0;
+        ccAvg.style.width = m > 0 ? `${Math.min(100, (a / m) * 100)}%` : '0%';
+        ccMax.style.width = m > 0 ? '100%' : '0%';
+    }
     const maxCardsLeftEl = document.getElementById('recoveryMaxCardsLeft');
     const maxRoundsLeftEl = document.getElementById('recoveryMaxRoundsLeft');
     if (maxCardsLeftEl) maxCardsLeftEl.textContent = ` ${result.maxCards} `;
@@ -2425,12 +2437,20 @@ function updateRecoveryDisplay(result) {
         if (cardPosition && cardPosition > 0) {
             const roundNumber = getRoundNumberForCardPosition(cardPosition);
             if (roundNumber) {
-                maxIdxEl.textContent = `第 ${cardPosition} 張（第 ${roundNumber} 局）`;
+                maxIdxEl.textContent = `${cardPosition} 張 / ${roundNumber} 局`;
             } else {
-                maxIdxEl.textContent = `第 ${cardPosition} 張`;
+                maxIdxEl.textContent = `${cardPosition} 張`;
             }
+            const ic = document.getElementById('recoveryMaxIdxCards');
+            const ir = document.getElementById('recoveryMaxIdxRounds');
+            if (ic) ic.textContent = cardPosition;
+            if (ir) ir.textContent = roundNumber || '--';
         } else {
-            maxIdxEl.textContent = '第 -- 張';
+            maxIdxEl.textContent = '-- 張';
+            const ic = document.getElementById('recoveryMaxIdxCards');
+            const ir = document.getElementById('recoveryMaxIdxRounds');
+            if (ic) ic.textContent = '--';
+            if (ir) ir.textContent = '--';
         }
     }
 
@@ -2445,6 +2465,9 @@ function updateRecoveryDisplay(result) {
     setRange('recoveryRange6to10', 'rangeBar6to10', `${pct6to10}%`, pct6to10);
     setRange('recoveryRange11to15', 'rangeBar11to15', `${pct11to15}%`, pct11to15);
     setRange('recoveryRange16plus', 'rangeBar16plus', `${pct16plus}%`, pct16plus);
+
+    // 回復分布甜甜圈（立即回復 + 四個區間）
+    updateRecoveryDonut(result.immediatePercent, pct1to5, pct6to10, pct11to15, pct16plus);
 
     // 張數分布柱狀圖
     const roundStats = getRoundCardCountStats((typeof currentRounds !== 'undefined') ? currentRounds : []);
@@ -2594,6 +2617,74 @@ function updateStats(data) {
     });
 }
 
+// 把數字標到圓餅圖對應扇形上
+// segs: [{ key, value, text }]，ratio 決定標籤離圓心多遠（佔半徑比例）
+function renderPieLabels(group, segs, ratio, boxId, chartSel) {
+    const box = document.getElementById(boxId || 'pieLabels');
+    const chart = document.querySelector(chartSel || '.combo-chart');
+    if (!box || !chart) return;
+
+    box.querySelectorAll(`[data-group="${group}"]`).forEach(el => el.remove());
+
+    const total = segs.reduce((s, x) => s + (x.value || 0), 0);
+    if (total <= 0) return;
+
+    const size = chart.offsetWidth || 136;
+    const R = size * ratio;
+    let acc = 0;
+
+    segs.forEach(seg => {
+        const v = seg.value || 0;
+        if (v <= 0) return;
+        const frac = v / total;
+        const mid = (acc + frac / 2) * 360;   // conic-gradient 從 12 點鐘順時針
+        acc += frac;
+
+        const rad = mid * Math.PI / 180;
+        const x = size / 2 + R * Math.sin(rad);
+        const y = size / 2 - R * Math.cos(rad);
+
+        const el = document.createElement('span');
+        el.className = `pie-label pie-label-${seg.key}`;
+        el.dataset.group = group;
+        el.textContent = seg.text;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        box.appendChild(el);
+    });
+}
+
+// 回復分布甜甜圈：立即 / 1-5 / 6-10 / 11+（金色系 淺→深，只標 %）
+// 11-15 與 16+ 併成 11+，避免小扇形標籤擠在一起
+function updateRecoveryDonut(pImm, p1, p2, p3, p4) {
+    const ring = document.getElementById('recRing');
+    if (!ring) return;
+    const p11plus = (parseFloat(p3) || 0) + (parseFloat(p4) || 0);
+    const vals = [pImm, p1, p2, p11plus].map(v => Math.max(0, parseFloat(v) || 0));
+    const total = vals.reduce((a, b) => a + b, 0);
+    if (total <= 0) {
+        ring.style.background = 'rgba(255,255,255,.06)';
+        const box = document.getElementById('recLabels');
+        if (box) box.innerHTML = '';
+        return;
+    }
+    const vars = ['--rec-1', '--rec-2', '--rec-3', '--rec-5'];
+    let acc = 0;
+    const stops = vals.map((v, i) => {
+        const start = (acc / total) * 360;
+        acc += v;
+        const end = (acc / total) * 360;
+        return `var(${vars[i]}) ${start}deg ${end}deg`;
+    });
+    ring.style.background = `conic-gradient(${stops.join(', ')})`;
+
+    renderPieLabels('rec', vals.map((v, i) => ({
+        key: `r${i + 1}`,
+        value: v,
+        text: `${((v / total) * 100).toFixed(1)}%`
+    })), 0.375, 'recLabels', '.rec-chart');
+}
+
 function updateCardRing(four, five, six) {
     const ring = document.getElementById('cardRing');
     const total = (four || 0) + (five || 0) + (six || 0);
@@ -2619,6 +2710,12 @@ function updateCardRing(four, five, six) {
         var(--ring-c5) ${e4}deg ${e5}deg,
         var(--ring-c6) ${e5}deg 360deg
     )`;
+
+    renderPieLabels('ring', [
+        { key: 'c4', value: four || 0, text: `${four || 0} · ${pct(four).toFixed(0)}%` },
+        { key: 'c5', value: five || 0, text: `${five || 0} · ${pct(five).toFixed(0)}%` },
+        { key: 'c6', value: six || 0,  text: `${six || 0} · ${pct(six).toFixed(0)}%` }
+    ], 0.38);
 }
 
 function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount }) {
@@ -2646,6 +2743,13 @@ function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount })
     if (bankerPctEl) bankerPctEl.textContent = `${bPct.toFixed(0)}%`;
     if (playerPctEl) playerPctEl.textContent = `${pPct.toFixed(0)}%`;
     if (tiePctEl) tiePctEl.textContent = `${tPct.toFixed(0)}%`;
+
+    // 內圈標籤：只填數字，不填 %
+    renderPieLabels('pie', [
+        { key: 'banker', value: bankerCount, text: String(bankerCount) },
+        { key: 'player', value: playerCount, text: String(playerCount) },
+        { key: 'tie',    value: tieCount,    text: String(tieCount) }
+    ], 0.15);
 
     // 內圈實心圓餅：莊閒和
     if (donut) {

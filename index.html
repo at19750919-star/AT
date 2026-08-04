@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=23">
-    <link rel="stylesheet" href="casino_theme.css?v=3">
+    <link rel="stylesheet" href="casino_theme.css?v=19">
 </head>
 
 <body>
@@ -147,29 +147,21 @@
                 <div class="recovery-pair">
                     <div class="recovery-block recovery-analysis">
                         <div class="viz-title">回復分析</div>
-                        <div class="main-stat"><span id="recoveryAvg">-- 局</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">立即回復</span><span id="recoveryImmediateDetail">--</span></div>
-                        <div class="range-bars" aria-label="回復局數分布">
-                            <div class="range-bar-row" title="1~5局">
-                                <span class="range-label">1–5</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar1to5"></div></div>
-                                <span class="range-val" id="recoveryRange1to5">--</span>
+                        <div class="rec-chart" aria-label="回復局數分布">
+                            <div class="rec-ring" id="recRing"></div>
+                            <div class="rec-hole"></div>
+                            <div class="rec-center">
+                                <span id="recoveryAvg">-- 局</span>
+                                <span id="recoveryAvgCards">-- 張</span>
                             </div>
-                            <div class="range-bar-row" title="6~10局">
-                                <span class="range-label">6–10</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar6to10"></div></div>
-                                <span class="range-val" id="recoveryRange6to10">--</span>
-                            </div>
-                            <div class="range-bar-row" title="11~15局">
-                                <span class="range-label">11–15</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar11to15"></div></div>
-                                <span class="range-val" id="recoveryRange11to15">--</span>
-                            </div>
-                            <div class="range-bar-row" title="16局以上">
-                                <span class="range-label">16+</span>
-                                <div class="range-track"><div class="range-fill" id="rangeBar16plus"></div></div>
-                                <span class="range-val" id="recoveryRange16plus">--</span>
-                            </div>
+                            <div class="pie-labels" id="recLabels"></div>
+                        </div>
+                        <div class="hud-compat-hidden" aria-hidden="true">
+                            <span id="recoveryImmediateDetail">--</span>
+                            <span id="recoveryRange1to5">--</span><span id="rangeBar1to5"></span>
+                            <span id="recoveryRange6to10">--</span><span id="rangeBar6to10"></span>
+                            <span id="recoveryRange11to15">--</span><span id="rangeBar11to15"></span>
+                            <span id="recoveryRange16plus">--</span><span id="rangeBar16plus"></span>
                         </div>
                     </div>
                     <div class="recovery-block recovery-cost">
@@ -177,18 +169,24 @@
                         <div class="cost-hero">
                             <div class="cost-item">
                                 <span class="cost-label">最大消耗</span>
-                                <span class="cost-value"><span id="recoveryMaxCardsLeft">--</span>張</span>
-                                <span class="cost-value"><span id="recoveryMaxRoundsLeft">--</span>局</span>
+                                <span class="cost-value"><b id="recoveryMaxCardsLeft">--</b>張<i>(<span id="recoveryMaxIdxCards">--</span>)</i></span>
+                                <span class="cost-value"><b id="recoveryMaxRoundsLeft">--</b>局<i>(<span id="recoveryMaxIdxRounds">--</span>)</i></span>
                             </div>
                         </div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">平均消耗</span><span id="recoveryAvgDetail">--</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">最大消耗</span><span id="recoveryMaxDetail">--</span></div>
-                        <div class="sub-stat-row"><span class="sub-stat-label">最大點</span><span id="recoveryMaxIndexDetail">--</span></div>
+                        <div class="hud-compat-hidden" aria-hidden="true">
+                            <span id="recoveryAvgDetail">--</span><span id="ccBarAvg"></span>
+                            <span id="recoveryMaxDetail">--</span><span id="ccBarMax"></span>
+                            <span id="recoveryMaxIndexDetail">--</span>
+                        </div>
                         <div class="b6-meta">
-                            <div class="sub-stat-row"><span class="sub-stat-label">對調莊6</span><span id="recoverySwapB6Count">--</span></div>
-                            <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoverySwapB6Rounds">--</span></div>
-                            <div class="sub-stat-row"><span class="sub-stat-label">莊6點贏</span><span id="recoveryBanker6Count">--</span></div>
-                            <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoveryBanker6Rounds">--</span></div>
+                            <div class="b6-item">
+                                <div class="sub-stat-row"><span class="sub-stat-label">對調莊6</span><span id="recoverySwapB6Count">--</span></div>
+                                <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoverySwapB6Rounds">--</span></div>
+                            </div>
+                            <div class="b6-item">
+                                <div class="sub-stat-row"><span class="sub-stat-label">莊6點贏</span><span id="recoveryBanker6Count">--</span></div>
+                                <div class="sub-stat-row b6-rounds"><span class="sub-stat-label">局號</span><span id="recoveryBanker6Rounds">--</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -196,13 +194,14 @@
 
             <!-- 莊閒和 + 張數分布：合成圓餅（內實心=莊閒和，外環=4/5/6張） -->
             <div class="panel outcome-viz" id="resultCircle">
-                <div class="viz-title">莊閒和 ／ 張數分布<span class="viz-total"><span id="circleTotal">0</span> 局</span></div>
                 <div class="outcome-body">
                     <div class="combo-chart">
                         <div class="card-ring" id="cardRing"></div>
                         <div class="outcome-donut" id="outcomeDonut"></div>
+                        <div class="chart-total"><span id="circleTotal">0</span></div>
+                        <div class="pie-labels" id="pieLabels"></div>
                     </div>
-                    <div class="outcome-legend">
+                    <div class="outcome-legend hud-compat-hidden" aria-hidden="true">
                         <div class="leg-row leg-banker">
                             <span class="leg-dot"></span>
                             <span class="leg-name">莊</span>
@@ -517,7 +516,7 @@
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
     <script src="signals.js?v=12"></script>
-    <script src="signals_ui.js?v=16"></script>
+    <script src="signals_ui.js?v=27"></script>
     <script src="smart_reorder_dialog.js?v=2"></script>
     <script src="swap_preview.js?v=2"></script>
     <script src="traverse.js?v=2"></script>
@@ -649,7 +648,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script>
         const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-            "donutSize": 108
+            "donutSize": 136
         }/*EDITMODE-END*/;
         function mountTweaks() {
             const e = React.createElement;
@@ -659,7 +658,7 @@
                     let el = document.getElementById('tweakStyle');
                     if (!el) { el = document.createElement('style'); el.id = 'tweakStyle'; document.head.appendChild(el); }
                     const size = t.donutSize;
-                    const ring = Math.max(12, Math.round(size * 0.16));
+                    const ring = Math.max(16, Math.round(size * 0.24));
                     el.textContent =
                         '.combo-chart{width:' + size + 'px !important;height:' + size + 'px !important}' +
                         '.outcome-donut{inset:' + ring + 'px !important}';
