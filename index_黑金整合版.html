@@ -947,6 +947,33 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
 .result-player{color:var(--player)}
 .result-banker{color:var(--banker)}
 .result-outcome{color:var(--gold-1)}
+
+/* ══════ 手機版（必須放樣式表最後，否則會被前面的桌機單排規則蓋掉）══════ */
+@media (max-width:700px){
+  .deck{grid-template-rows:auto;grid-template-columns:1fr 88px;height:auto}
+  .signal-row{flex-wrap:wrap;justify-content:center;gap:10px}
+  .exp-tabs{flex-wrap:wrap;gap:6px}
+  .exp-tab{flex:1 1 28%;font-size:13px}
+  .exp-panel.open{overflow:visible}
+  /* 條件／違規改兩欄，數字框保留可點寬度＋16px 字級（iOS 才不會自動放大頁面） */
+  #pCond .cond-grid,#pVio .vio-grid{flex-wrap:wrap}
+  #pCond .cond,#pVio .vio{flex:1 1 100%;padding:8px 12px}   /* 每項獨佔一行，標籤左、控制項右 */
+  #pCond .numbox{flex:0 0 auto;width:72px;min-width:72px;height:36px;font-size:16px;text-align:center}
+  #pCut .numbox,#pPos .numbox{width:100px;min-width:100px;height:40px;font-size:17px}
+  #pSet.open{gap:10px}
+  #pSet .pick{min-width:34px;height:34px;font-size:13px}
+  #pSet .pick.suit{width:36px}
+  .set-sep{display:none}
+  .tool{min-width:44%;letter-spacing:.2em;text-indent:.2em}
+  .chip-col{gap:6px}
+  .chip.gen{width:58px;height:58px}
+  .chip{width:38px;height:38px}
+  .chip .lbl{font-size:10px}
+  .chip.gen .lbl{font-size:12px}
+  .stats{grid-template-columns:1fr;gap:16px}
+  .stat-card{flex-direction:column;gap:12px}
+  .rec-info{min-width:0;width:100%}
+}
 </style>
 </head>
 <body>
@@ -1027,10 +1054,10 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
       <div class="cond-grid">
         <div class="cond" data-tip="混和卡色：允許 BBBR / RRRB / BBRR / RRBB"><span class="name">混合</span><div class="switch" id="swMix"></div></div>
         <div class="cond" data-tip="避開莊 6 點贏"><span class="name">莊6</span><div class="switch" id="swB6"></div></div>
-        <div class="cond" data-tip="平均回復局數上限（0 = 關閉檢查）"><span class="name">回復</span><input class="numbox" type="number" id="avgRecoveryLimit" step="0.1" min="0" value="0" placeholder="0"></div>
-        <div class="cond" data-tip="和局數上限（留空 = 不檢查）"><span class="name">和局</span><input class="numbox" type="number" id="maxTieLimit" min="0" value="3" placeholder="—"></div>
-        <div class="cond" data-tip="4 張局比例上限 %（留空 = 不檢查）"><span class="name">四張</span><input class="numbox" type="number" id="maxFourCardRate" min="0" max="100" step="0.1" value="" placeholder="—"></div>
-        <div class="cond" data-tip="莊 與 閒+和 的局數差距上限（留空 = 不檢查）"><span class="name">莊閒</span><input class="numbox" type="number" id="maxSideLimit" min="0" value="" placeholder="—"></div>
+        <div class="cond" data-tip="平均回復局數上限（0 = 關閉檢查）"><span class="name">回復</span><input class="numbox" type="number" inputmode="decimal" id="avgRecoveryLimit" step="0.1" min="0" value="0" placeholder="0"></div>
+        <div class="cond" data-tip="和局數上限（留空 = 不檢查）"><span class="name">和局</span><input class="numbox" type="number" inputmode="numeric" id="maxTieLimit" min="0" value="3" placeholder="—"></div>
+        <div class="cond" data-tip="4 張局比例上限 %（留空 = 不檢查）"><span class="name">四張</span><input class="numbox" type="number" inputmode="decimal" id="maxFourCardRate" min="0" max="100" step="0.1" value="" placeholder="—"></div>
+        <div class="cond" data-tip="莊 與 閒+和 的局數差距上限（留空 = 不檢查）"><span class="name">莊閒</span><input class="numbox" type="number" inputmode="numeric" id="maxSideLimit" min="0" value="" placeholder="—"></div>
       </div>
     </div>
 
@@ -1038,7 +1065,7 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     <div class="exp-panel gframe" id="pCut">
       <p class="p-label">切牌 CUT</p>
       <div class="big-num-row">
-        <input class="numbox" type="number" id="cutPos" min="0" placeholder="張數">
+        <input class="numbox" type="number" inputmode="numeric" id="cutPos" min="0" placeholder="張數">
         <div class="pick quick" id="btnCut">執行切牌</div>
         <span class="hint">需先生成並按過「套用」記錄牌序</span>
       </div>
@@ -1048,7 +1075,7 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     <div class="exp-panel gframe" id="pPos">
       <p class="p-label">定位 POSITION</p>
       <div class="big-num-row">
-        <input class="numbox" type="number" id="highlightCardPos" min="1" placeholder="第幾張">
+        <input class="numbox" type="number" inputmode="numeric" id="highlightCardPos" min="1" placeholder="第幾張">
         <div class="pick quick" id="btnHighlightCard">定位高亮</div>
         <span class="hint">輸入 1~416 的全靴牌序</span>
       </div>
