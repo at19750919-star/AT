@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=23">
-    <link rel="stylesheet" href="casino_theme.css?v=19">
+    <link rel="stylesheet" href="casino_theme.css?v=45">
 </head>
 
 <body>
@@ -53,7 +53,7 @@
         <div class="top-controls command-bar">
             <div class="panel settings-card">
                 <div class="sc-col sc-signal">
-                    <div class="signal-banner">
+                    <div class="signal-banner" id="signalBanner" onclick="document.getElementById('ranksCollapse').classList.toggle('collapsed')">
                         <span id="signalConfigDisplay" class="signal-config-display"></span>
                         <span class="signal-count-suffix">共 <span id="signalCardCount">0</span> 張</span>
                     </div>
@@ -69,6 +69,8 @@
                             <button type="button" class="generate-stop-btn signal-preset-btn" onclick="setSignalPreset('hd0')" title="♥♦ 0點 (10JQK)">♥0</button>
                         </div>
                     </div>
+                    <div class="ranks-collapse collapsed" id="ranksCollapse">
+                    <div class="ranks-collapse-inner">
                     <div class="settings-ranks">
                         <a class="rank-button" data-value="A"><span class="rank-value">A</span></a>
                         <a class="rank-button" data-value="2"><span class="rank-value">2</span></a>
@@ -83,6 +85,8 @@
                         <a class="rank-button" data-value="J"><span class="rank-value">J</span></a>
                         <a class="rank-button" data-value="Q"><span class="rank-value">Q</span></a>
                         <a class="rank-button" data-value="K"><span class="rank-value">K</span></a>
+                    </div>
+                    </div>
                     </div>
                     <div class="sc-actions">
                         <button class="generate-stop-btn generate-primary" id="generateBtn">生成</button>
@@ -173,6 +177,11 @@
                                 <span class="cost-value"><b id="recoveryMaxRoundsLeft">--</b>局<i>(<span id="recoveryMaxIdxRounds">--</span>)</i></span>
                             </div>
                         </div>
+                        <div class="cost-bpt">
+                            <span class="bpt bpt-b"><i class="bpt-dot"></i>莊 <b id="costBankerCount">--</b> 局</span>
+                            <span class="bpt bpt-p"><i class="bpt-dot"></i>閒 <b id="costPlayerCount">--</b> 局</span>
+                            <span class="bpt bpt-t"><i class="bpt-dot"></i>和 <b id="costTieCount">--</b> 局</span>
+                        </div>
                         <div class="hud-compat-hidden" aria-hidden="true">
                             <span id="recoveryAvgDetail">--</span><span id="ccBarAvg"></span>
                             <span id="recoveryMaxDetail">--</span><span id="ccBarMax"></span>
@@ -190,10 +199,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- 莊閒和 + 張數分布：合成圓餅（內實心=莊閒和，外環=4/5/6張） -->
-            <div class="panel outcome-viz" id="resultCircle">
+                <div class="panel outcome-viz" id="resultCircle">
                 <div class="outcome-body">
                     <div class="combo-chart">
                         <div class="card-ring" id="cardRing"></div>
@@ -248,6 +254,11 @@
                     <div id="hudTieBar"></div>
                 </div>
             </div>
+            </div>
+
+
+            <!-- 莊閒和 + 張數分布：合成圓餅（內實心=莊閒和，外環=4/5/6張） -->
+            
 
             <!-- 張數分布已併入上面的合成圓餅；保留隱藏元素相容舊更新邏輯 -->
             <div class="hud-compat-hidden" aria-hidden="true">
@@ -516,7 +527,7 @@
 
     <!-- 載入核心邏輯（這些檔案需要你自己提供） -->
     <script src="signals.js?v=12"></script>
-    <script src="signals_ui.js?v=27"></script>
+    <script src="signals_ui.js?v=35"></script>
     <script src="smart_reorder_dialog.js?v=2"></script>
     <script src="swap_preview.js?v=2"></script>
     <script src="traverse.js?v=2"></script>

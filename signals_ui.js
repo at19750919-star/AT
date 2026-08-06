@@ -2712,10 +2712,10 @@ function updateCardRing(four, five, six) {
     )`;
 
     renderPieLabels('ring', [
-        { key: 'c4', value: four || 0, text: `${four || 0} · ${pct(four).toFixed(0)}%` },
-        { key: 'c5', value: five || 0, text: `${five || 0} · ${pct(five).toFixed(0)}%` },
-        { key: 'c6', value: six || 0,  text: `${six || 0} · ${pct(six).toFixed(0)}%` }
-    ], 0.38);
+        { key: 'c4', value: four || 0, text: `${four || 0}\n${pct(four).toFixed(0)}%` },
+        { key: 'c5', value: five || 0, text: `${five || 0}\n${pct(five).toFixed(0)}%` },
+        { key: 'c6', value: six || 0,  text: `${six || 0}\n${pct(six).toFixed(0)}%` }
+    ], 0.36);
 }
 
 function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount }) {
@@ -2744,12 +2744,15 @@ function updateResultCircle({ totalRounds, bankerCount, playerCount, tieCount })
     if (playerPctEl) playerPctEl.textContent = `${pPct.toFixed(0)}%`;
     if (tiePctEl) tiePctEl.textContent = `${tPct.toFixed(0)}%`;
 
-    // 內圈標籤：只填數字，不填 %
-    renderPieLabels('pie', [
-        { key: 'banker', value: bankerCount, text: String(bankerCount) },
-        { key: 'player', value: playerCount, text: String(playerCount) },
-        { key: 'tie',    value: tieCount,    text: String(tieCount) }
-    ], 0.15);
+    // 內圈不再標數字（中心只留總局數）；莊閒和局數改列在「最大消耗」下方
+    renderPieLabels('pie', [], 0.15);
+    const costB = document.getElementById('costBankerCount');
+    const costP = document.getElementById('costPlayerCount');
+    const costT = document.getElementById('costTieCount');
+    if (costB) costB.textContent = String(bankerCount);
+    if (costP) costP.textContent = String(playerCount);
+    if (costT) costT.textContent = String(tieCount);
+    if (typeof alignB6ToBpt === 'function') alignB6ToBpt();
 
     // 內圈實心圓餅：莊閒和
     if (donut) {
@@ -4237,3 +4240,17 @@ function initSwapPreviewToggle() {
         log(`換牌預覽已${swapPreviewEnabled ? '開啟' : '關閉'}`, swapPreviewEnabled ? 'info' : 'warn');
     });
 }
+
+
+
+// 讓 b6-meta 寬度貼齊莊閒和行寬，右緣對齊「和 n 局」
+function alignB6ToBpt() {
+    const bpt = document.querySelector('#recoveryDisplay .cost-bpt');
+    const host = document.getElementById('recoveryDisplay');
+    if (!bpt || !host || !bpt.lastElementChild) return;
+    // 行本身撐滿欄寬，須量「最後一個項目的右緣」到行左緣的實際內容寬
+    const w = bpt.lastElementChild.getBoundingClientRect().right - bpt.getBoundingClientRect().left;
+    if (w > 0) host.style.setProperty('--bpt-w', Math.round(w) + 'px');
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', alignB6ToBpt);
+else alignB6ToBpt();
