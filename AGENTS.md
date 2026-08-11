@@ -1,5 +1,3 @@
-**禁止事項：**
-> 注意：本專案禁止使用任何 git 指令；VS Code 於執行/偵錯前會自動顯示警告（任務：no-git-guard）。  
 
 # 用繁體中文
 
@@ -21,8 +19,5 @@
 - 承認不知道的部分
 - 避免浪費時間的無效分析
 
-# Repository Guidelines
 
-- 嚴禁使用任何 `git` 指令（包含但不限於 `git checkout`、`git reset`、`git restore`、`git clean`、`git commit`、`git pull` 等）。  
-- 只能直接編輯檔案內容，任何版本還原或其他 git 操作一律不得執行。
 
