@@ -70,16 +70,14 @@ header{
 }
 .crest{
   width:52px;height:52px;border-radius:50%;flex:none;position:relative;
-  background:radial-gradient(circle at 35% 30%, #1d2b26, #0a1210 70%);
+  background:#080908 url("suit/at-spade-logo-precise.png") center/cover no-repeat;
   box-shadow:0 0 0 1px #8a6a2f, 0 0 0 4px #0c1110, 0 0 0 5px #5d431c, 0 6px 18px rgba(0,0,0,.6), inset 0 0 14px rgba(232,201,122,.15);
   display:grid;place-items:center;
-  font-size:24px;color:var(--gold-1);
+  font-size:0;color:transparent;
   text-shadow:0 0 10px rgba(244,223,164,.6);
 }
 .crest::before{
-  content:"";position:absolute;inset:-9px;border-radius:50%;
-  border:1px dashed rgba(217,181,104,.4);
-  animation:orbit 24s linear infinite;
+  display:none;
 }
 @keyframes orbit{to{transform:rotate(360deg)}}
 h1{
@@ -652,6 +650,13 @@ body.table-zoom .felt{box-shadow:inset 0 0 60px rgba(0,0,0,.55), inset 0 0 4px r
 .mini-card.face-gold .rk{color:#241c08}
 .mini-card.ace-image{width:54px;height:81px;padding:0;overflow:hidden;background:#090a09;box-shadow:0 5px 13px rgba(0,0,0,.62),0 0 0 1px #8a6a2f}
 .mini-card.ace-image img{display:block;width:100%;height:100%;object-fit:cover}
+.mini-card.ace-logo-card{background:#070807;box-shadow:0 5px 13px rgba(0,0,0,.65),0 0 0 1px #8a6a2f,inset 0 0 0 2px rgba(217,181,104,.28)}
+.mini-card.ace-logo-card::after{content:"";position:absolute;inset:3px;border:1px solid rgba(244,223,164,.7);border-radius:3px;pointer-events:none}
+.mini-card.ace-logo-card .ace-logo-mark{position:absolute;z-index:0;left:50%;top:50%;width:50px;height:50px;object-fit:cover;transform:translate(-50%,-50%)}
+.mini-card .ace-corner{position:absolute;z-index:2;display:flex;flex-direction:column;align-items:center;font-family:Georgia,serif;font-weight:700;font-size:8px;line-height:.8;color:#e7c46f;text-shadow:0 1px 2px #000}
+.mini-card .ace-corner small{font-size:6px;line-height:.9}
+.mini-card .ace-corner.top{top:5px;left:5px}
+.mini-card .ace-corner.bottom{right:5px;bottom:5px;transform:rotate(180deg)}
 .mini-card .cgrid{position:absolute;inset:0;display:grid;grid-template-columns:auto auto;place-content:center;justify-items:center;gap:3px 9px;font-size:17px;line-height:1}
 .mini-card .cgrid .red{color:#a52e22}
 .mini-card .cgrid .blu{color:#1d3a5f}
@@ -1479,15 +1484,13 @@ function syncDesignSignal(){
         ordered.forEach((r,i) => {
             const card = document.createElement('div');
             const isAce = r === 'A';
-            const imageSrc = isAce
-                ? 'suit/ace-of-spades-art-deco.png'
-                : (r === '2' ? 'suit/two-of-spades-art-deco.png' : '');
+            const imageSrc = r === '2' ? 'suit/two-of-spades-art-deco.png' : '';
             const offset = i - (nR - 1) / 2;
             const xOffset = offset * 26;
             const yOffset = isAce ? -6 : Math.abs(offset) * 6;
-            card.className = imageSrc
-                ? 'mini-card ace-image'
-                : 'mini-card' + (faceClass ? ' ' + faceClass : '');
+            card.className = isAce
+                ? 'mini-card ace-image ace-logo-card'
+                : (imageSrc ? 'mini-card ace-image' : 'mini-card' + (faceClass ? ' ' + faceClass : ''));
             card.style.transform = `translateX(calc(-50% + ${xOffset}px)) translateY(${yOffset}px) rotate(${start+spread*i}deg)`;
             card.style.animationDelay = (i*0.04)+'s';
             card.style.zIndex = isAce ? nR + 1 : i;
@@ -1495,6 +1498,9 @@ function syncDesignSignal(){
             card.innerHTML = imageSrc
                 ? `<img src="${imageSrc}" alt="${isAce ? '黑桃 A' : '黑桃 2'}">`
                 : `<div class="rk">${r}</div>` + centerHTML;
+            if (isAce) {
+                card.innerHTML = '<span class="ace-corner top">A<small>♠</small></span><img class="ace-logo-mark" src="suit/at-spade-logo-precise.png" alt="AT 黑桃"><span class="ace-corner bottom">A<small>♠</small></span>';
+            }
             fan.appendChild(card);
         });
     }
