@@ -345,12 +345,17 @@ body:not(.running) .chip.stop{filter:grayscale(.6) brightness(.55);pointer-event
 
 /* ============ stats strip ============ */
 .stats{
-  display:none;padding:20px 24px;grid-column:1 / 3;
+  display:none;padding:20px 24px;
   grid-template-columns:auto auto 1fr;gap:30px;align-items:center;
 }
 body.running .stats,body.finished .stats{display:grid}
-body.running .signal,body.running .expanders,
-body.finished .signal,body.finished .expanders{display:none}
+body.running .expanders,
+body.finished .expanders{display:none}
+/* 牌生成出來後：訊號牌卡片本身留著（卡扇＋張數），只收起四花色圓標 */
+body.running .suit-coins,
+body.finished .suit-coins{display:none}
+.vio-live-card{display:none}
+body.running .vio-live-card,body.finished .vio-live-card{display:flex}
 .donut-wrap{display:flex;gap:14px;align-items:center}
 .donut{width:120px;height:120px;transform:rotate(-90deg)}
 .donut circle{fill:none;stroke-width:14;stroke-linecap:butt;transition:stroke-dasharray .6s ease}
@@ -434,23 +439,23 @@ body.finished .signal,body.finished .expanders{display:none}
 .felt-head .rule{flex:1;max-width:180px;height:1px;background:linear-gradient(90deg,transparent,rgba(244,223,164,.5),transparent)}
 /* 表格不做內部捲動：整頁滾動，表頭沿用 sticky 貼在視窗頂 */
 .table-scroll{position:relative;z-index:1;overflow:visible;max-height:none;border-radius:8px}
-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;min-width:760px}
+table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:15px;min-width:760px}
 thead th{
   position:sticky;top:0;z-index:2;
   font-family:var(--serif);font-weight:600;font-size:12px;letter-spacing:.3em;text-indent:.3em;
   color:var(--gold-1);text-align:center;
   padding:10px 8px;
-  background:linear-gradient(180deg,#0f241c,#0a1a13);
+  background:var(--felt-1);   /* 跟牌桌氈布同色的實心綠，sticky 捲動時才不會跟底下資料列疊字 */
   border-bottom:1px solid #c9a25a;
-  box-shadow:0 4px 10px rgba(0,0,0,.4);
+  /* 不對每個 th 個別加 box-shadow：border-collapse:separate 底下每格會各自投影，
+     看起來像一格一格的方塊；拿掉後靠統一底色+一條金線收邊，整排表頭才連成一體 */
 }
 tbody td{
   text-align:center;padding:9px 8px;color:var(--txt);
   border-bottom:1px solid rgba(244,223,164,.09);
-  background:rgba(6,14,11,.35);
+  background:transparent;   /* 不疊自己的底色，直接透出 .felt 的牌桌綠 */
   font-variant-numeric:tabular-nums;
 }
-tbody tr:nth-child(odd) td{background:rgba(10,22,17,.5)}
 tbody tr{animation:rowIn .4s ease backwards}
 @keyframes rowIn{from{opacity:0;transform:translateY(-6px)}}
 tbody tr:hover td{background:rgba(212,176,106,.09)}
@@ -519,34 +524,45 @@ td.pt{font-family:var(--disp);font-weight:700;font-size:16px}
 /* --- 真實表格：renderRoundsTable 輸出 --- */
 .table-scroll thead th{white-space:nowrap}
 tbody td.minor-column{width:44px;color:var(--gold-2);font-family:var(--disp);font-weight:700}
-tbody td.cards-column{text-align:left;min-width:270px}
+tbody td.cards-column{text-align:left;padding:3px}
 tbody td.color-column{white-space:nowrap}
-tbody td.hand-card-cell{white-space:nowrap}
+tbody td.hand-card-cell{white-space:nowrap;text-align:left}
 tbody td.hand-point-cell{font-family:var(--disp);font-weight:700;font-size:16px}
 tbody td.compare-cell{font-size:12.5px;color:var(--txt-dim)}
 .card-strip,.hand-chip-strip{display:inline-flex;flex-wrap:wrap;gap:3px;vertical-align:middle}
 .card-label{
-  display:inline-block;min-width:30px;padding:2px 5px;border-radius:5px;
-  font-size:12.5px;letter-spacing:.03em;line-height:1.5;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;padding:0;border-radius:5px;box-sizing:border-box;
+  font-size:12.5px;letter-spacing:.01em;cursor:pointer;
   background:rgba(6,12,10,.7);border:1px solid #2c3634;color:var(--txt);
   transition:.15s;
 }
 .card-label:hover{border-color:#c9a25a}
-.card-label.card-back-red{border-color:rgba(224,92,79,.55);box-shadow:inset 0 -2px 0 rgba(224,92,79,.55)}
-.card-label.card-back-blue{border-color:rgba(79,163,216,.55);box-shadow:inset 0 -2px 0 rgba(79,163,216,.55)}
+/* 紅背／藍背改用「亮 vs 暗」對比，不靠色相分辨（色盲也看得出來）：
+   紅背＝亮米白底＋深字；藍背＝維持深底＋亮字＋銀邊。s-signal-card 規則在後面，
+   訊號牌仍會整張蓋成金色，不受這裡影響（只留一條底邊線透出背色）。 */
+.card-label.card-back-red{
+  background:#e9e2ce;color:#1c2420;border-color:#b8ac86;
+  box-shadow:inset 0 -3px 0 rgba(28,36,32,.35);
+}
+.card-label.card-back-blue{
+  background:#0a0f0e;color:#e3edf1;border-color:#5b6f77;
+  box-shadow:inset 0 -3px 0 rgba(227,237,241,.35);
+}
 .card-label.card-back-unknown{border-style:dashed}
+/* 訊號牌只讓點數花色文字發光，不整格填色——底下紅背/藍背的亮暗對比才不會被蓋掉。
+   改用亮青色而不是金色：金字在紅背的亮米白底上對比太低幾乎看不見，青色跟紅/藍背、
+   金色系其他 UI 元素都不撞色，在亮底暗底上都夠跳。 */
 .card-label.s-signal-card{
-  color:var(--gold-1);border-color:#c9a25a;
-  background:linear-gradient(180deg,rgba(212,176,106,.2),rgba(107,76,29,.15));
-  text-shadow:0 0 8px rgba(244,223,164,.6);
+  color:#ff3b3b;
   font-weight:700;
 }
 .card-label.selected-first{outline:2px solid var(--gold-1);outline-offset:1px;background:rgba(244,223,164,.25);color:#fff}
 .card-label.selected-second{outline:2px solid var(--player);outline-offset:1px;background:rgba(79,163,216,.25);color:#fff}
 .card-label.highlighted-card-pos{outline:2px solid var(--gold-1);background:rgba(244,223,164,.35);color:#120e04;font-weight:700;text-shadow:none}
 /* 卡色小點 */
-.color-chips{display:inline-flex;gap:3px;vertical-align:middle}
-.color-chip{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+.color-chips{display:inline-flex;gap:5px;vertical-align:middle}
+.color-chip{width:16px;height:16px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
 .color-chip.red{background:radial-gradient(circle at 35% 30%,#ff8a7a,#a03328)}
 .color-chip.blue{background:radial-gradient(circle at 35% 30%,#7cc0ea,#28648f)}
 .color-chip.unknown{background:#3a4340}
@@ -556,10 +572,9 @@ td.outcome-banker{color:#ff9d8f;text-shadow:0 0 8px rgba(224,92,79,.35)}
 td.outcome-player{color:#7cc0ea;text-shadow:0 0 8px rgba(79,163,216,.35)}
 td.outcome-tie{color:#7fd8a8;text-shadow:0 0 8px rgba(92,191,138,.35)}
 td.banker-six-point{color:var(--gold-1);text-shadow:0 0 10px rgba(244,223,164,.7)}
-td.swap-banker-six-result{color:var(--gold-1) !important;text-shadow:0 0 10px rgba(244,223,164,.8)}
+td.swap-banker-six-result{color:#0559ea !important;text-shadow:0 0 10px rgba(5,89,234,.8)}
 /* 列狀態 */
 tbody tr.round-row{animation:none}
-tbody tr.s-signal-round td.minor-column:first-child{box-shadow:inset 3px 0 0 var(--gold-2)}
 tbody tr.full-house-round td{background:rgba(122,92,190,.10)}
 tbody tr.violation-row td{background:rgba(224,92,79,.13);box-shadow:inset 0 0 0 .5px rgba(224,92,79,.25)}
 tbody tr.card-color-violation-row td{background:rgba(232,163,61,.12)}
@@ -682,6 +697,25 @@ body.table-zoom .felt{box-shadow:inset 0 0 60px rgba(0,0,0,.55), inset 0 0 4px r
 .swap-preview-toggle:hover{border-color:#8a6a2f}
 .swap-preview-toggle input{accent-color:#d9b568;width:15px;height:15px}
 
+/* 檢視面板：切牌／定位（從頂部展開鈕移入，改成 tool-btn 語彙的內嵌數字組） */
+.view-sep{width:1px;height:28px;background:rgba(138,106,47,.4);flex:none;margin:0 2px}
+.view-num-group{
+  position:relative;display:inline-flex;align-items:center;gap:8px;
+  height:40px;padding:0 12px;border-radius:8px;cursor:default;
+  background:linear-gradient(180deg,#161f21,#0d1315);border:1px solid #2c3634;
+}
+.view-num-group .name{font-size:12.5px;letter-spacing:.15em;color:var(--gold-2)}
+.view-num-group .numbox{width:76px;height:30px;font-size:14px}
+.view-num-group .tool-btn{min-width:auto;height:30px;padding:0 14px;font-size:12px}
+.view-num-group:hover::after{
+  content:attr(data-tip);display:block;position:absolute;z-index:40;
+  top:calc(100% + 7px);left:0;white-space:nowrap;
+  background:linear-gradient(160deg,#182124,#0d1315);
+  border:1px solid #8a6a2f;border-radius:6px;padding:6px 11px;
+  color:var(--gold-1);font-size:11.5px;letter-spacing:.05em;
+  box-shadow:0 10px 22px rgba(0,0,0,.65);
+}
+
 /* --- 控制區壓縮（主表格優先，上方高度減半；2026-08-06 使用者核可方案） --- */
 /* 控制帶固定 165px（＋header 85 = 最上面 250px）；面板吃滿剩餘高度 */
 .deck{
@@ -705,10 +739,7 @@ body.table-zoom .felt{box-shadow:inset 0 0 60px rgba(0,0,0,.55), inset 0 0 4px r
 /* 展開面板吃滿控制帶剩餘高度，內容垂直置中 */
 .expanders{height:100%}
 .exp-panel.open{flex:1;min-height:0;overflow:auto}
-#pCond.open,#pCut.open,#pPos.open,#pVio.open{display:flex;flex-direction:column;justify-content:center}
-/* 違規分頁：生成出牌局後才出現 */
-.exp-tab[data-panel="pVio"]{display:none}
-body.has-rounds .exp-tab[data-panel="pVio"]{display:block}
+#pCond.open{display:flex;flex-direction:column;justify-content:center}
 .mini-card{width:44px;height:62px;border-radius:6px;padding:4px 5px;bottom:4px}
 .mini-card .rk{font-size:14px}
 .mini-card .cpip{font-size:26px}
@@ -718,7 +749,7 @@ body.has-rounds .exp-tab[data-panel="pVio"]{display:block}
 .exp-tab{padding:8px 4px 6px;font-size:13px}
 .exp-tab .glyph{font-size:13px;margin-bottom:1px}
 .exp-panel{margin-top:10px;padding:8px 16px}
-#pCond .p-label,#pCut .p-label,#pPos .p-label,#pVio .p-label{margin-bottom:6px}
+#pCond .p-label{margin-bottom:6px}
 /* 設定面板：花色｜點數｜快選 單排（吃滿面板高度，按鈕放大、垂直置中） */
 #pSet.open{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 #pSet .pick-row{margin-bottom:0;gap:7px}
@@ -729,14 +760,7 @@ body.has-rounds .exp-tab[data-panel="pVio"]{display:block}
 /* 條件面板：六項單排 */
 #pCond .cond-grid{display:flex;gap:9px}
 #pCond .cond{flex:1;min-width:0;padding:5px 10px;gap:8px;font-size:12.5px}
-/* 切牌／定位／違規：內容修到不超過面板高度 */
-#pCut .numbox,#pPos .numbox{height:36px;font-size:19px}
-#pVio .vio-grid{display:flex;gap:8px}
-#pVio .vio{flex:1;min-width:0;padding:6px 10px;gap:8px;font-size:12px}
-#pVio .vio .lamp{width:24px;height:24px;font-size:11px}
-#pVio .v-name{white-space:nowrap}
-#pVio .vio .v-val{font-size:11px;max-width:none;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#pCond .p-label,#pCut .p-label,#pPos .p-label,#pVio .p-label{margin-bottom:3px}
+#pCond .p-label{margin-bottom:3px}
 #pCond .cond .name{white-space:nowrap}
 /* 數字框：跟著格子收縮 + 拿掉原生上下箭頭（固定寬會撐爆格子壓到隔壁文字） */
 #pCond .cond{overflow:hidden}
@@ -772,8 +796,13 @@ body.has-rounds .exp-tab[data-panel="pVio"]{display:block}
 .chip.gen .lbl{font-size:14px;letter-spacing:.18em;text-indent:.18em}
 .chip.gen .sub{display:block;font-size:7px;letter-spacing:.2em}
 
-/* 統計態不受固定列高限制（雙卡需要圓餅高度） */
-body.running .deck,body.finished .deck{grid-template-rows:auto}
+/* 統計態不受固定列高限制（雙卡需要圓餅高度）；.deck 這時是 4 欄：
+   訊號牌(卡扇+張數，花色圓標收起) / 即時統計(590px 定寬) / 違規 / 籌碼
+   （設定態仍是 3 欄：訊號牌 / 展開面板 / 籌碼，統計與違規卡此時 display:none） */
+body.running .deck,body.finished .deck{
+  grid-template-rows:auto;
+  grid-template-columns:minmax(200px,260px) 590px 1fr 100px;
+}
 /* 窄螢幕：單排排不下時放行換行、列高自動，不長捲軸（1920 維持 250px 定案） */
 @media (max-width:1560px){
   .deck{grid-template-rows:auto}
@@ -798,6 +827,46 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
 }
 .stats{grid-template-columns:auto auto;justify-content:start;gap:34px}
 .stat-card{display:flex;align-items:center;gap:20px}
+/* 違規：獨立面板（訊號牌／即時統計 同級），金框自帶 frame-title + 右上角紅色計數徽章 */
+.vio-live-card{
+  position:relative;flex-direction:column;align-items:stretch;
+  padding:20px 16px 16px;gap:8px;min-width:190px;justify-content:center;
+}
+.vio-live-card .badge{
+  position:absolute;top:-11px;right:16px;
+  display:none;min-width:20px;height:20px;border-radius:10px;place-items:center;padding:0 6px;
+  background:var(--danger);color:#fff;font-size:11px;font-family:var(--sans);letter-spacing:0;
+  box-shadow:0 0 8px rgba(255,107,94,.6);
+}
+.vio-live-card .badge.show{display:grid}
+/* 卡片C 內容可能很長（例如卡色違規列出幾十個局號）：值換行到名稱下方 + 清單本身限高可捲動，
+   不然一個超長違規值會撐爆整張卡、把旁邊的圓餅卡推走 */
+#statsVioCard .vio-grid{
+  display:flex;flex-direction:column;gap:6px;
+  max-height:172px;overflow-y:auto;padding-right:4px;
+  scrollbar-width:thin;scrollbar-color:#8a6a2f #0c1a14;
+}
+#statsVioCard .vio{padding:5px 10px;gap:6px 8px;font-size:11.5px;flex-wrap:wrap;align-items:center}
+#statsVioCard .vio .lamp{width:20px;height:20px;font-size:9px}
+#statsVioCard .v-val{
+  flex:1 1 100%;font-size:11px;text-align:left;
+  white-space:normal;word-break:break-word;max-width:none;
+  padding-left:28px;line-height:1.5;
+}
+/* 只顯示真的有問題的項目；全部正常時用一行「目前無違規」取代整份清單 */
+#statsVioCard .vio.no-violation{display:none}
+.vio-empty{
+  display:none;text-align:center;padding:22px 0;
+  font-size:12px;letter-spacing:.15em;color:var(--ok);
+}
+#statsVioCard.all-clear .vio-empty{display:block}
+#statsVioCard.all-clear .vio-grid{display:none}
+/* 局號連結：點了跳到主表格對應那列（focusRoundFromShoeMap） */
+.round-link{
+  color:var(--gold-1);text-decoration:none;font-weight:700;
+  border-bottom:1px dashed rgba(244,223,164,.5);cursor:pointer;padding:0 1px;
+}
+.round-link:hover{color:#fff;border-bottom-style:solid;text-shadow:0 0 8px rgba(244,223,164,.6)}
 /* 卡片A：回復甜甜圈 */
 .rec-chart,.combo-chart{position:relative;width:136px;height:136px;flex:none}
 .rec-ring{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.06);box-shadow:0 0 0 1px rgba(138,106,47,.4), 0 6px 16px rgba(0,0,0,.5)}
@@ -951,15 +1020,22 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
 /* ══════ 手機版（必須放樣式表最後，否則會被前面的桌機單排規則蓋掉）══════ */
 @media (max-width:700px){
   .deck{grid-template-rows:auto;grid-template-columns:1fr 88px;height:auto}
+  /* 統計態現在有 4 個可見項目（訊號牌/統計/違規/籌碼），窄螢幕全部改單欄堆疊，
+     不然 88px 的舊 2 欄版型會把統計卡硬塞進 88px 寬 */
+  body.running .deck,body.finished .deck{grid-template-columns:1fr}
+  body.running .chip-col,body.finished .chip-col{justify-self:center}
   .signal-row{flex-wrap:wrap;justify-content:center;gap:10px}
   .exp-tabs{flex-wrap:wrap;gap:6px}
   .exp-tab{flex:1 1 28%;font-size:13px}
   .exp-panel.open{overflow:visible}
   /* 條件／違規改兩欄，數字框保留可點寬度＋16px 字級（iOS 才不會自動放大頁面） */
-  #pCond .cond-grid,#pVio .vio-grid{flex-wrap:wrap}
-  #pCond .cond,#pVio .vio{flex:1 1 100%;padding:8px 12px}   /* 每項獨佔一行，標籤左、控制項右 */
+  #pCond .cond-grid{flex-wrap:wrap}
+  #pCond .cond{flex:1 1 100%;padding:8px 12px}   /* 每項獨佔一行，標籤左、控制項右 */
+  .stats{grid-template-columns:1fr}
+  .vio-live-card{min-width:0}
   #pCond .numbox{flex:0 0 auto;width:72px;min-width:72px;height:36px;font-size:16px;text-align:center}
-  #pCut .numbox,#pPos .numbox{width:100px;min-width:100px;height:40px;font-size:17px}
+  .view-num-group{flex:1 1 100%;justify-content:space-between}
+  .view-num-group .numbox{width:90px;height:36px;font-size:16px}
   #pSet.open{gap:10px}
   #pSet .pick{min-width:34px;height:34px;font-size:13px}
   #pSet .pick.suit{width:36px}
@@ -1012,9 +1088,6 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     <div class="exp-tabs" id="expTabs">
       <div class="exp-tab" data-panel="pSet"><span class="glyph">♠</span>設定</div>
       <div class="exp-tab" data-panel="pCond"><span class="glyph">♦</span>條件</div>
-      <div class="exp-tab" data-panel="pCut"><span class="glyph">✂</span>切牌</div>
-      <div class="exp-tab" data-panel="pPos"><span class="glyph">◎</span>定位</div>
-      <div class="exp-tab" data-panel="pVio"><span class="glyph">♣</span>違規<span class="flag" id="vioFlag">0</span></div>
     </div>
 
     <!-- 設定：花色 × 點數（.suit-button / .rank-button 供 signals_ui 讀取） -->
@@ -1052,44 +1125,11 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     <div class="exp-panel gframe" id="pCond">
       <p class="p-label">生成條件 CONDITIONS</p>
       <div class="cond-grid">
-        <div class="cond" data-tip="混和卡色：允許 BBBR / RRRB / BBRR / RRBB"><span class="name">混合</span><div class="switch" id="swMix"></div></div>
         <div class="cond" data-tip="避開莊 6 點贏"><span class="name">莊6</span><div class="switch" id="swB6"></div></div>
         <div class="cond" data-tip="平均回復局數上限（0 = 關閉檢查）"><span class="name">回復</span><input class="numbox" type="number" inputmode="decimal" id="avgRecoveryLimit" step="0.1" min="0" value="0" placeholder="0"></div>
         <div class="cond" data-tip="和局數上限（留空 = 不檢查）"><span class="name">和局</span><input class="numbox" type="number" inputmode="numeric" id="maxTieLimit" min="0" value="3" placeholder="—"></div>
         <div class="cond" data-tip="4 張局比例上限 %（留空 = 不檢查）"><span class="name">四張</span><input class="numbox" type="number" inputmode="decimal" id="maxFourCardRate" min="0" max="100" step="0.1" value="" placeholder="—"></div>
         <div class="cond" data-tip="莊 與 閒+和 的局數差距上限（留空 = 不檢查）"><span class="name">莊閒</span><input class="numbox" type="number" inputmode="numeric" id="maxSideLimit" min="0" value="" placeholder="—"></div>
-      </div>
-    </div>
-
-    <!-- 切牌 -->
-    <div class="exp-panel gframe" id="pCut">
-      <p class="p-label">切牌 CUT</p>
-      <div class="big-num-row">
-        <input class="numbox" type="number" inputmode="numeric" id="cutPos" min="0" placeholder="張數">
-        <div class="pick quick" id="btnCut">執行切牌</div>
-        <span class="hint">需先生成並按過「套用」記錄牌序</span>
-      </div>
-    </div>
-
-    <!-- 定位 -->
-    <div class="exp-panel gframe" id="pPos">
-      <p class="p-label">定位 POSITION</p>
-      <div class="big-num-row">
-        <input class="numbox" type="number" inputmode="numeric" id="highlightCardPos" min="1" placeholder="第幾張">
-        <div class="pick quick" id="btnHighlightCard">定位高亮</div>
-        <span class="hint">輸入 1~416 的全靴牌序</span>
-      </div>
-    </div>
-
-    <!-- 違規（真實 calculateViolationStats 結果，由 updateViolationUI 寫入） -->
-    <div class="exp-panel gframe" id="pVio">
-      <p class="p-label">違規掃描 VIOLATIONS</p>
-      <div class="vio-grid" id="vioGrid">
-        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">訊號牌違規</span><span class="v-val violation-detail" id="signalViolationDetail">無</span></div>
-        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">連續5局4張</span><span class="v-val violation-detail" id="fourCardViolationDetail">無</span></div>
-        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">連續莊閒</span><span class="v-val violation-detail" id="streakViolationDetail">無</span></div>
-        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">無法對調</span><span class="v-val violation-detail" id="cannotSwapViolationDetail">無</span></div>
-        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">其他違規</span><span class="v-val violation-detail" id="otherViolationDetail">無</span></div>
       </div>
     </div>
   </div>
@@ -1140,6 +1180,21 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     </div>
   </div>
 
+  <!-- 違規：獨立一張卡（真實 calculateViolationStats 結果，由 updateViolationUI 寫入，id 沿用不變），
+       坐在「即時統計」與籌碼欄中間，不掛在 .stats 裡面 -->
+  <div class="vio-live-card gframe" id="statsVioCard">
+    <span class="frame-title">違規 VIOLATIONS</span>
+    <span class="badge" id="vioFlag">0</span>
+    <div class="vio-grid" id="vioGrid">
+      <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">訊號牌違規</span><span class="v-val violation-detail" id="signalViolationDetail">無</span></div>
+      <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">連續5局4張</span><span class="v-val violation-detail" id="fourCardViolationDetail">無</span></div>
+      <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">連續莊閒</span><span class="v-val violation-detail" id="streakViolationDetail">無</span></div>
+        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">無法對調</span><span class="v-val violation-detail" id="cannotSwapViolationDetail">無</span></div>
+        <div class="vio violation-card no-violation"><div class="lamp">◈</div><span class="v-name">其他違規</span><span class="v-val violation-detail" id="otherViolationDetail">無</span></div>
+      </div>
+    <div class="vio-empty" id="vioEmpty">目前無違規</div>
+  </div>
+
   <!-- 籌碼三鈕（常駐；轉發到隱藏的真實按鈕） -->
   <div class="chip-col">
     <button class="chip gen" id="chipGen"><span><span class="lbl">生成</span><span class="sub">DEAL</span></span></button>
@@ -1179,7 +1234,7 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
   <div class="tool-panel gframe" id="tpVerify">
     <button class="tool-btn" id="btnValidate">驗證</button>
   </div>
-  <!-- 檢視 -->
+  <!-- 檢視（切牌／定位從頂部展開鈕移入：同屬「查看/定位牌靴」性質） -->
   <div class="tool-panel gframe" id="tpView">
     <button class="tool-btn" id="btnShoeMap" onclick="toggleShoeMap()">路單</button>
     <button class="tool-btn" id="btnPointStats" onclick="window.open('point_stats.html','_blank')">點數統計</button>
@@ -1187,6 +1242,17 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     <button class="tool-btn" id="btnDealer">發牌</button>
     <button class="tool-btn" id="btnSpeech">語音</button>
     <button class="tool-btn" id="btnApplyTools">計算</button>
+    <span class="view-sep"></span>
+    <div class="view-num-group" data-tip="需先生成並按過「套用」記錄牌序">
+      <span class="name">切牌</span>
+      <input class="numbox" type="number" inputmode="numeric" id="cutPos" min="0" placeholder="張數">
+      <button class="tool-btn" id="btnCut">執行</button>
+    </div>
+    <div class="view-num-group" data-tip="輸入 1~416 的全靴牌序">
+      <span class="name">定位</span>
+      <input class="numbox" type="number" inputmode="numeric" id="highlightCardPos" min="1" placeholder="第幾張">
+      <button class="tool-btn" id="btnHighlightCard">高亮</button>
+    </div>
   </div>
 </section>
 
@@ -1200,6 +1266,17 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
     </div>
     <div class="table-scroll">
       <table id="roundsTable" style="display:none">
+        <colgroup>
+          <col style="width:4%">   <!-- 局 -->
+          <col style="width:23%">  <!-- 卡牌 -->
+          <col style="width:14%">  <!-- 卡色 -->
+          <col style="width:7%">   <!-- 終 -->
+          <col style="width:15%">  <!-- 閒家牌 -->
+          <col style="width:15%">  <!-- 莊家牌 -->
+          <col style="width:7%">   <!-- 閒 -->
+          <col style="width:7%">   <!-- 莊 -->
+          <col style="width:8%">   <!-- 調 -->
+        </colgroup>
         <thead id="roundsHead"></thead>
         <tbody id="roundsBody"></tbody>
       </table>
@@ -1257,7 +1334,6 @@ body.running .deck,body.finished .deck{grid-template-rows:auto}
   <input type="number" id="max7PtReversal" min="0" value="2">
   <input type="number" id="swapBanker6Target" min="0" value="9">
   <input type="checkbox" id="skipBanker6">
-  <input type="checkbox" id="mixedColorModeToggle">
 
   <!-- 工具細項已全部移至可見的 4 大類面板（.tool-panels） -->
 
@@ -1462,20 +1538,9 @@ function bindSwitch(swId, cbId, onChange){
         if (onChange) onChange(cb.checked);
     });
 }
-/* 混和卡色：還原 localStorage（沿用 card_color_mixed_mode key），變更即持久化 */
-(function(){
-    const cb = $('mixedColorModeToggle');
-    try {
-        const v = localStorage.getItem('card_color_mixed_mode');
-        cb.checked = (v === null) ? true : (v === '1');
-    } catch(e) { cb.checked = true; }
-    bindSwitch('swMix', 'mixedColorModeToggle', checked => {
-        if (typeof persistCardColorMixedMode === 'function') persistCardColorMixedMode(checked);
-        if (typeof log === 'function') {
-            log(checked ? '卡色模式：混和（BBBR / RRRB / BBRR / RRBB）' : '卡色模式：標準（BBBR / RRRB）', 'info');
-        }
-    });
-})();
+/* 混合卡色開關已移除：一律強制標準模式（只允許 BBBR / RRRB），
+   不再讀 localStorage 的舊值，避免舊裝置殘留的 '1' 讓生成邏輯偷跑混和組合 */
+if (typeof persistCardColorMixedMode === 'function') persistCardColorMixedMode(false);
 /* 避開莊6點贏（at-settings 已先還原 checked） */
 bindSwitch('swB6', 'skipBanker6');
 
@@ -1511,12 +1576,7 @@ function syncDesignStats(){
     const has = rounds.length > 0;
     $('shoeRoundTotal').textContent = `SHOE · ${rounds.length} 局`;
     $('tblEmpty').style.display = has ? 'none' : 'block';
-    /* 違規分頁只在有牌局時出現；牌局清空時順手收合它 */
     document.body.classList.toggle('has-rounds', has);
-    if (!has && $('pVio').classList.contains('open')) {
-        $('pVio').classList.remove('open');
-        document.querySelector('.exp-tab[data-panel="pVio"]').classList.remove('active');
-    }
     if (!document.body.classList.contains('running')) {
         document.body.classList.toggle('finished', has);
     }
@@ -1545,7 +1605,18 @@ window.refreshAnalysisAndRender = function(...args){
     return r;
 };
 
-/* ───────── 違規徽章：掛鉤 updateViolationUI ───────── */
+/* 把違規文字裡「真的是局號」的數字包成可點連結（點了跳到主表格對應那列並閃一下）。
+   只用 stats 物件裡明確的局號陣列去比對取代，不對整串文字做無腦數字替換——
+   避免把「3 處」這種計數字（沒有局號清單時的退回顯示）誤包成連結。 */
+function linkifyRounds(el, list){
+    if (!el || !Array.isArray(list) || !list.length) return;
+    const nums = [...new Set(list.map(n => String(n)))].sort((a,b) => b.length - a.length);
+    if (!nums.length) return;
+    const re = new RegExp(`(?<!\\d)(${nums.join('|')})(?!\\d)`, 'g');
+    el.innerHTML = el.innerHTML.replace(re, '<a href="#" class="round-link" data-round="$1">$1</a>');
+}
+
+/* ───────── 違規徽章 + 局號連結：掛鉤 updateViolationUI ───────── */
 const _updVio = window.updateViolationUI;
 window.updateViolationUI = function(stats){
     _updVio(stats);
@@ -1559,7 +1630,29 @@ window.updateViolationUI = function(stats){
     const flag = $('vioFlag');
     flag.textContent = n;
     flag.classList.toggle('show', n > 0);
+    /* 全部正常時只顯示「目前無違規」，有問題的項目才留在清單裡（CSS 已隱藏 .no-violation 列） */
+    $('statsVioCard').classList.toggle('all-clear', n === 0);
+
+    /* 局號連結：直接用 stats 裡的真實陣列，不猜文字 */
+    linkifyRounds($('signalViolationDetail'), s.signalViolationRounds);
+    linkifyRounds($('cannotSwapViolationDetail'), s.cannotSwapRounds);
+    linkifyRounds($('fourCardViolationDetail'),
+        Array.isArray(s.fourCardBlocks) ? s.fourCardBlocks.flatMap(b => [b.startIdx+1, b.endIdx+1]) : null);
+    linkifyRounds($('streakViolationDetail'),
+        Array.isArray(s.streakBlocks) ? s.streakBlocks.flatMap(b => [b.startIdx+1, b.endIdx+1]) : null);
+    linkifyRounds($('otherViolationDetail'),
+        [].concat(s.cardCountMismatchRounds || [], s.cardColorRounds || []));
 };
+/* 點局號連結 → 跳到主表格對應那列（沿用真實的路單跳轉函式 focusRoundFromShoeMap，不另寫捲動邏輯） */
+$('statsVioCard').addEventListener('click', e => {
+    const a = e.target.closest('.round-link');
+    if (!a) return;
+    e.preventDefault();
+    const n = parseInt(a.dataset.round, 10);
+    if (Number.isInteger(n) && n >= 1 && typeof focusRoundFromShoeMap === 'function') {
+        focusRoundFromShoeMap(n - 1);
+    }
+});
 
 /* ───────── 工具列 4 大類：點擊展開細項（手風琴） ───────── */
 $('toolCats').addEventListener('click', e => {
