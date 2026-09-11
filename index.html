@@ -70,7 +70,7 @@ header{
 }
 .crest{
   width:52px;height:52px;border-radius:50%;flex:none;position:relative;
-  background:#080908 url("suit/at-spade-logo-precise.png") center/cover no-repeat;
+  background:#080908 url("suit/at-spade-logo-current.png") center/cover no-repeat;
   box-shadow:0 0 0 1px #8a6a2f, 0 0 0 4px #0c1110, 0 0 0 5px #5d431c, 0 6px 18px rgba(0,0,0,.6), inset 0 0 14px rgba(232,201,122,.15);
   display:grid;place-items:center;
   font-size:0;color:transparent;
@@ -1499,7 +1499,7 @@ function syncDesignSignal(){
                 ? `<img src="${imageSrc}" alt="${isAce ? '黑桃 A' : '黑桃 2'}">`
                 : `<div class="rk">${r}</div>` + centerHTML;
             if (isAce) {
-                card.innerHTML = '<span class="ace-corner top">A<small>♠</small></span><img class="ace-logo-mark" src="suit/at-spade-logo-precise.png" alt="AT 黑桃"><span class="ace-corner bottom">A<small>♠</small></span>';
+                card.innerHTML = '<span class="ace-corner top">A<small>♠</small></span><img class="ace-logo-mark" src="suit/at-spade-logo-current.png" alt="AT 黑桃"><span class="ace-corner bottom">A<small>♠</small></span>';
             }
             fan.appendChild(card);
         });
