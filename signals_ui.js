@@ -2016,6 +2016,20 @@ if (typeof window !== 'undefined') {
                     performCut(cutPos);
                 });
             }
+            const recordDeckBtn = document.getElementById('btnRecordDeckOrder');
+            if (recordDeckBtn) {
+                recordDeckBtn.addEventListener('click', () => {
+                    if (!currentRounds || currentRounds.length === 0) {
+                        log('請先生成牌靴', 'error');
+                        return;
+                    }
+                    if (typeof saveOriginalDeckOrder === 'function') {
+                        saveOriginalDeckOrder();
+                    } else {
+                        log('記錄牌序功能未載入', 'error');
+                    }
+                });
+            }
             const highlightBtn = document.getElementById('btnHighlightCard');
             if (highlightBtn) {
                 highlightBtn.addEventListener('click', () => {
@@ -3171,8 +3185,14 @@ function updateEditUI() {
         const canCancel = canModify && (EDIT_STATE.mode !== 'none' || hasFirst || hasSecond);
         btnCancel.disabled = !canCancel;
     }
+    const hasDeck = Array.isArray(currentRounds) && currentRounds.length > 0;
     if (btnApply) {
-        btnApply.disabled = !canModify;
+        // 套用同時負責「確認編輯」與「記錄牌序供切牌」：有牌靴即可按
+        btnApply.disabled = !hasDeck;
+    }
+    const btnRecordDeck = document.getElementById('btnRecordDeckOrder');
+    if (btnRecordDeck) {
+        btnRecordDeck.disabled = !hasDeck;
     }
     const btnAutoColor = document.getElementById('btnAutoColor');
     if (btnAutoColor) {
