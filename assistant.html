@@ -2717,9 +2717,10 @@
         </div>
       </div>
       <div id="fs-jump-fab" aria-label="全螢幕快速跳轉">
+        <button type="button" class="fs-jump-fab-btn" data-jump-card="1" title="回到最上面（第1張）">01</button>
         <button type="button" class="fs-jump-fab-btn" data-jump-card="101" title="畫面從第101張開始">101</button>
         <button type="button" class="fs-jump-fab-btn" data-jump-card="201" title="畫面從第201張開始">201</button>
-        <button type="button" class="fs-jump-fab-btn" id="fs-jump-bottom-btn" title="跳到最底">底</button>
+        <button type="button" class="fs-jump-fab-btn" data-jump-card="301" title="畫面從第301張開始">301</button>
       </div>
       <div id="assistant-layout">
         <div id="grid-panel">
@@ -3169,7 +3170,11 @@
           setMoreToolsOpen(false);
           body.classList.add("assistant-fullscreen");
           syncFullscreenSummary();
-          window.setTimeout(updateGridCellSize, 0);
+          window.setTimeout(() => {
+            updateGridCellSize();
+            ensureJumpScrollPad(301);
+            syncFsJumpFabPosition();
+          }, 0);
         }
 
         function exitAssistantFullscreen() {
@@ -3419,6 +3424,7 @@
           const cellSize = Math.floor((containerWidth - (totalCols - 1) * colGap) / totalCols);
           const clamped = Math.max(28, Math.min(60, cellSize));
           gridContainer.style.setProperty("--grid-row-size", clamped + "px");
+          ensureJumpScrollPad(301);
           syncFsJumpFabPosition();
         }
 
@@ -4467,10 +4473,57 @@
           return { start, pause, reset, onTick };
         })();
 
+
+        // 在牌靴末端補上空列，讓指定牌號（預設 301）能捲到畫面第一行
+        function ensureJumpScrollPad(anchorCard) {
+          if (!gridContainer || !gridScrollContainer || !gridCells.length) return;
+          gridContainer
+            .querySelectorAll(".pad-row-label, .pad-cell")
+            .forEach((el) => el.remove());
+          const card = Math.max(1, anchorCard || 301);
+          const anchorIdx = Math.min(card - 1, gridCells.length - 1);
+          const anchorCell = gridCells[anchorIdx];
+          const lastCell = gridCells[gridCells.length - 1];
+          if (!anchorCell || !lastCell) return;
+          const viewportH = gridScrollContainer.clientHeight;
+          if (viewportH < 40) return;
+          const contentH =
+            lastCell.offsetTop + lastCell.offsetHeight - anchorCell.offsetTop;
+          const padNeeded = Math.max(0, viewportH - contentH);
+          if (padNeeded < 1) return;
+          const rowH = anchorCell.offsetHeight || 40;
+          const styles = window.getComputedStyle(gridContainer);
+          const rowGap =
+            parseFloat(styles.rowGap || styles.gap || "2") || 2;
+          const stride = Math.max(rowH + rowGap, 1);
+          const padRows = Math.ceil(padNeeded / stride);
+          const startRow = Math.ceil(gridCells.length / GRID_COLS);
+          for (let r = 0; r < padRows; r++) {
+            const rowIndex = startRow + r;
+            const rowLabel = document.createElement("div");
+            rowLabel.className = "grid-row-label pad-row-label";
+            rowLabel.dataset.rowIndex = String(rowIndex);
+            rowLabel.textContent = "";
+            gridContainer.appendChild(rowLabel);
+            for (let c = 0; c < GRID_COLS; c++) {
+              const filler = document.createElement("div");
+              filler.className = "grid-cell empty-cell pad-cell";
+              filler.dataset.rowIndex = String(rowIndex);
+              gridContainer.appendChild(filler);
+            }
+          }
+        }
+
         // 把指定張所在那一列貼齊捲動區最上緣；81 / 161 快捷鈕與計時自動捲動共用
         function scrollGridToCardNumber(cardNum) {
           if (!fullDeck.length || !gridCells.length || !gridScrollContainer)
             return;
+          ensureJumpScrollPad(301);
+          if (cardNum <= 1) {
+            gridScrollContainer.scrollTop = 0;
+            syncFsJumpFabPosition();
+            return;
+          }
           const idx = Math.min(
             Math.max(cardNum - 1, 0),
             gridCells.length - 1,
@@ -4480,6 +4533,7 @@
           const containerRect = gridScrollContainer.getBoundingClientRect();
           const cellRect = cell.getBoundingClientRect();
           gridScrollContainer.scrollTop += cellRect.top - containerRect.top;
+          syncFsJumpFabPosition();
         }
 
         function scrollGridToBottom() {
@@ -4491,7 +4545,15 @@
         function syncFsJumpFabPosition() {
           if (!fsJumpFab || !gridScrollContainer || !gridContainer) return;
           if (!body.classList.contains("assistant-fullscreen")) return;
-          const emptyCells = gridContainer.querySelectorAll(".empty-cell");
+          const lastDataRow = gridCells.length
+            ? Math.ceil(gridCells.length / GRID_COLS) - 1
+            : -1;
+          const emptyCells =
+            lastDataRow >= 0
+              ? gridContainer.querySelectorAll(
+                  `.empty-cell[data-row-index="${lastDataRow}"]:not(.pad-cell)`,
+                )
+              : [];
           let startRect;
           let endRect;
           if (emptyCells.length > 0) {
@@ -4530,10 +4592,6 @@
             if (!Number.isNaN(cardNum)) scrollGridToCardNumber(cardNum);
           });
         });
-        const fsJumpBottomBtn = document.getElementById("fs-jump-bottom-btn");
-        if (fsJumpBottomBtn)
-          fsJumpBottomBtn.addEventListener("click", scrollGridToBottom);
-
         if (gridScrollContainer) {
           let fabSyncFrame = 0;
           gridScrollContainer.addEventListener("scroll", () => {
@@ -4911,6 +4969,8 @@
           // 加入點擊事件（用於標記）
           gridContainer.addEventListener("click", handleCellClick);
           gridContainer.addEventListener("dblclick", handleRowDoubleClick);
+          ensureJumpScrollPad(301);
+          syncFsJumpFabPosition();
         }
 
         function formatCardValueForGrid(card) {
