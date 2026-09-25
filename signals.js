@@ -1111,6 +1111,7 @@ const LOG_ALLOW_PATTERNS = [
     /^\s*🔁/,
     /^第\s*\d+\s*局(?!\(非S\))/, // 例如：自動重排、結果提示（排除非S訊號提示）
     /^生成完成!?$/,
+    /^末張9調整完成/,
     /^卡色交換成功/,
     /^卡色交換失敗/
 ];
@@ -3290,6 +3291,11 @@ async function generateShoe() {
             }
 
             // 通過所有檢查，確認使用此結果
+            if (document.getElementById('lastCardNine')?.checked && !rotateShoeAfterEndingNine(roundsToCheck)) {
+                log(`第 ${attempt} 次生成沒有完整 416 張且末張為 9 的局，重新生成...`, 'warn');
+                result = null;
+                continue;
+            }
             finalizedRounds = roundsToCheck;
         }
 
@@ -3351,6 +3357,20 @@ async function generateShoe() {
             } catch (e) {
                 log(`⚠️ 自動卡色調整失敗: ${e && e.message ? e.message : e}`, 'error');
             }
+        }
+
+        // 生成與原有調整完成後，依「末張9」條件旋轉整副牌靴。
+        if (document.getElementById('lastCardNine')?.checked) {
+            const adjusted = rotateShoeAfterEndingNine(currentRounds);
+            if (!adjusted) {
+                currentRounds = null;
+                renderRoundsTable(null, null);
+                throw new Error('末張9調整失敗：找不到完整 416 張且末張為 9 的局');
+            }
+            currentRounds = adjusted.rounds;
+            refreshAnalysisAndRender({ mutate: false, skipVerify: true });
+            const startRound = adjusted.sourceRound === adjusted.rounds.length ? 1 : adjusted.sourceRound + 1;
+            log(`末張9調整完成：從原第 ${startRound} 局開始，第 416 張為 9`, 'success');
         }
 
         // 【輸出統計日誌】
@@ -4880,13 +4900,13 @@ function recalculateRoundsAfterDistribution(rounds) {
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypt3_PnEL5TgdDPaBwg1M5bWAjQMR9dD5Jslicn3eZCtuNSTtqO35RafhQpuX-l9_m/exec';
 
 /**
- * 產生下一個導出檔名：F101.xlsx, F102.xlsx, ...
+ * 產生下一個導出檔名：從 F501.xlsx 起，並接續現有最大編號
  * 編號以「雲端 Drive 現有最大 F 編號 +1」為準（跨瀏覽器/port/裝置一致），
  * localStorage 僅在雲端讀取失敗時作為 fallback，避免完全沒編號。
  */
 async function getNextExportFilename() {
     const key = 'at-export-counter';
-    const START = 100; // 從 F101 開始（START + 1）
+    const START = 500; // 從 F501 開始（START + 1）
 
     // 取得雲端現有最大 F 編號
     let cloudMax = -1;
@@ -5558,7 +5578,7 @@ async function exportRoundsAsExcelWithDrive() {
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-        // 生成檔名（F101.xlsx, F102.xlsx, ...，以雲端最大編號 +1）
+        // 生成檔名（從 F501.xlsx 起，並接續雲端最大編號）
         const filename = await getNextExportFilename();
 
         // === 下載到本機 ===

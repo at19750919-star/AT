@@ -1133,6 +1133,7 @@ body.running .deck,body.finished .deck{
       <p class="p-label">生成條件 CONDITIONS</p>
       <div class="cond-grid">
         <div class="cond" data-tip="避開莊 6 點贏"><span class="name">莊6</span><div class="switch" id="swB6"></div></div>
+        <div class="cond" data-tip="生成完成後調整牌序，讓整副牌靴第 416 張是 9"><span class="name">末張9</span><div class="switch" id="swLastNine"></div></div>
         <div class="cond" data-tip="平均回復局數上限（0 = 關閉檢查）"><span class="name">回復</span><input class="numbox" type="number" inputmode="decimal" id="avgRecoveryLimit" step="0.1" min="0" value="0" placeholder="0"></div>
         <div class="cond" data-tip="和局數上限（留空 = 不檢查）"><span class="name">和局</span><input class="numbox" type="number" inputmode="numeric" id="maxTieLimit" min="0" value="3" placeholder="—"></div>
         <div class="cond" data-tip="4 張局比例上限 %（留空 = 不檢查）"><span class="name">四張</span><input class="numbox" type="number" inputmode="decimal" id="maxFourCardRate" min="0" max="100" step="0.1" value="" placeholder="—"></div>
@@ -1342,6 +1343,7 @@ body.running .deck,body.finished .deck{
   <input type="number" id="max7PtReversal" min="0" value="2">
   <input type="number" id="swapBanker6Target" min="0" value="9">
   <input type="checkbox" id="skipBanker6">
+  <input type="checkbox" id="lastCardNine">
 
   <!-- 工具細項已全部移至可見的 4 大類面板（.tool-panels） -->
 
@@ -1378,8 +1380,9 @@ body.running .deck,body.finished .deck{
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <!-- 核心邏輯（順序沿用原始版；traverse.js 未在整合包內且無被引用，略） -->
-<script src="signals.js?v=12"></script>
-<script src="signals_ui.js?v=35"></script>
+<script src="signals.js?v=15"></script>
+<script src="shoe_cut.js?v=3"></script>
+<script src="signals_ui.js?v=38"></script>
 <script src="smart_reorder_dialog.js?v=2"></script>
 <script src="swap_preview.js?v=2"></script>
 <script src="auto_fix_plugin.js?v=3"></script>
@@ -1389,7 +1392,7 @@ body.running .deck,body.finished .deck{
 (function(){
     var STORAGE_KEY = 'at-settings';
     var INPUT_IDS = ['avgRecoveryLimit','maxSideLimit','maxTieLimit','maxFourCardRate','max7PtReversal','swapBanker6Target'];
-    var CHECK_IDS = ['skipBanker6'];
+    var CHECK_IDS = ['skipBanker6','lastCardNine'];
     try {
         var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
         INPUT_IDS.forEach(function(id){
@@ -1563,6 +1566,7 @@ function bindSwitch(swId, cbId, onChange){
 if (typeof persistCardColorMixedMode === 'function') persistCardColorMixedMode(false);
 /* 避開莊6點贏（at-settings 已先還原 checked） */
 bindSwitch('swB6', 'skipBanker6');
+bindSwitch('swLastNine', 'lastCardNine');
 
 /* ───────── 籌碼三鈕 → 真實按鈕 ───────── */
 $('chipGen').addEventListener('click', () => {
