@@ -259,7 +259,11 @@ function performCut(cutPosition) {
             runRecoveryAnalysis();
         }
         
-        log('切牌完成！共 ' + newRounds.length + ' 局', 'success');
+        const tail = newRounds.find(round => round.result === '殘牌');
+        const completedRounds = newRounds.length - (tail ? 1 : 0);
+        log('切牌完成！共 ' + completedRounds + ' 局' +
+            (tail ? '，尾端殘牌 ' + tail.cards.length + ' 張' : '') +
+            '，總計 ' + rotatedDeck.length + ' 張牌', 'success');
         return true;
         
     } catch (err) {
@@ -340,7 +344,7 @@ function getRoundNumberForCardPosition(cardPos) {
 
 // 從牌組模擬發牌（純模式，不套用任何規則）
 function simulateRoundsFromDeckPure(deck) {
-    if (!Array.isArray(deck) || deck.length < 4) {
+    if (!Array.isArray(deck) || deck.length === 0) {
         return [];
     }
     
@@ -429,7 +433,19 @@ function simulateRoundsFromDeckPure(deck) {
         rounds.push(round);
         currentIdx = idx;
     }
-    
+
+    // currentIdx 只在完整一局後前進；缺補牌時連同該局已取出的牌一起保留。
+    if (currentIdx < deck.length) {
+        rounds.push({
+            start_index: currentIdx,
+            cards: deck.slice(currentIdx),
+            result: '殘牌',
+            sensitive: false,
+            isT: false,
+            segment: 'C'
+        });
+    }
+
     return rounds;
 }
 
@@ -2062,20 +2078,18 @@ if (typeof window !== 'undefined') {
 
                     const menu = document.createElement('div');
                     menu.id = 'importMenu';
-                    menu.style.cssText = 'position:absolute;z-index:9999;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+                    menu.className = 'import-source-menu';
 
                     const btnLocal = document.createElement('button');
                     btnLocal.textContent = '本機檔案';
-                    btnLocal.style.cssText = 'padding:8px 18px;background:#2a2a4a;color:#eee;border:none;border-radius:4px;cursor:pointer;font-size:14px;';
-                    btnLocal.onmouseenter = () => btnLocal.style.background = '#3a3a6a';
-                    btnLocal.onmouseleave = () => btnLocal.style.background = '#2a2a4a';
+                    btnLocal.className = 'tool-btn';
+                    btnLocal.type = 'button';
                     btnLocal.onclick = () => { menu.remove(); importFileInput.click(); };
 
                     const btnCloud = document.createElement('button');
                     btnCloud.textContent = 'Google 雲端';
-                    btnCloud.style.cssText = 'padding:8px 18px;background:#2a2a4a;color:#eee;border:none;border-radius:4px;cursor:pointer;font-size:14px;';
-                    btnCloud.onmouseenter = () => btnCloud.style.background = '#3a3a6a';
-                    btnCloud.onmouseleave = () => btnCloud.style.background = '#2a2a4a';
+                    btnCloud.className = 'tool-btn';
+                    btnCloud.type = 'button';
                     btnCloud.onclick = () => { menu.remove(); loadFromGoogleDrive(); };
 
                     menu.appendChild(btnLocal);

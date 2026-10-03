@@ -1995,7 +1995,7 @@ function refreshAnalysisAndRender(options = {}) {
     }
 
     // 更新回復分析（僅在編輯模式下重新計算）
-    if (editEnabled && currentRounds && currentRounds.length > 0) {
+    if (!options.skipRecovery && editEnabled && currentRounds && currentRounds.length > 0) {
         try {
             const recoveryResult = analyzeShoeRecovery(currentRounds);
             updateRecoveryDisplay(recoveryResult);
@@ -4406,22 +4406,27 @@ function parseCardLabel(label, pos, backColor) {
     return card;
 }
 
-async function importRoundsFromExcel(file) {
-    if (typeof ExcelJS === 'undefined' || !ExcelJS.Workbook) {
-        log('ExcelJS 載入失敗，無法匯入。', 'error');
-        return;
-    }
-
+async function importRoundsFromExcel(file, feedbackStarted = false) {
+    if (!feedbackStarted && !importFeedback.begin(file.name)) return false;
     try {
+        if (typeof ExcelJS === 'undefined' || !ExcelJS.Workbook) {
+            throw new Error('Excel 元件載入失敗，請重新整理頁面後再試。');
+        }
+        await importFeedback.stage('正在讀取檔案…');
         log(`正在匯入: ${file.name}...`, 'info');
         const wb = new ExcelJS.Workbook();
         const buffer = await file.arrayBuffer();
-        await wb.xlsx.load(buffer);
+        await importFeedback.stage('正在解析 Excel…');
+        try {
+            await wb.xlsx.load(buffer);
+        } catch (error) {
+            console.error('Excel 解析失敗:', error);
+            throw new Error('無法解析 Excel，檔案可能損壞或不是有效的 .xlsx 檔案。');
+        }
 
         const ws = wb.getWorksheet('原始數據');
         if (!ws) {
-            log('找不到「原始數據」工作表，無法匯入。', 'error');
-            return;
+            throw new Error('找不到「原始數據」工作表，請選擇本系統匯出的 Excel 檔案。');
         }
 
         // 用 header 動態對應欄位（容錯新舊版）
@@ -4479,17 +4484,15 @@ async function importRoundsFromExcel(file) {
         });
 
         if (rounds.length === 0) {
-            log('匯入失敗：沒有找到有效的局數資料。', 'error');
-            return;
+            throw new Error('沒有找到有效的局數資料，請檢查檔案內容。');
         }
 
+        await importFeedback.stage('正在將牌局顯示到主表格…');
         currentRounds = rounds;
         // 匯入外部 xlsx 時跳過訊號牌/連續莊閒/連續4張等「人造規則」違規檢查
         // 「生成牌靴」會自動 reset 這個 flag(見 generateShoe)
         window.__importedShoeMode = true;
-        log(`✅ 匯入成功：${rounds.length} 局（已停用訊號牌違規檢查）`, 'success');
-
-        refreshAnalysisAndRender({ mutate: false, skipVerify: true });
+        refreshAnalysisAndRender({ mutate: false, skipVerify: true, skipRecovery: true });
         setEditButtonsAvailability(true);
         resetEditState();
 
@@ -4497,6 +4500,8 @@ async function importRoundsFromExcel(file) {
         log(`莊家局數: ${stats.bankerCount}、閒家局數: ${stats.playerCount}、和局數: ${stats.tieCount}`, 'info');
 
         // 匯入後跑回復分析,讓「平均N局/最大消耗/4-5-6張局/對調莊6/莊6點贏」面板顯示出來
+        let recoveryWarning = '';
+        await importFeedback.stage('牌局已顯示，正在計算回復統計…');
         try {
             if (typeof analyzeShoeRecovery === 'function' && typeof updateRecoveryDisplay === 'function') {
                 const recoveryResult = analyzeShoeRecovery(currentRounds);
@@ -4504,11 +4509,20 @@ async function importRoundsFromExcel(file) {
             }
         } catch (e) {
             console.warn('匯入後回復分析失敗:', e);
+            recoveryWarning = '回復統計計算失敗，牌局已載入；可稍後重新分析。';
         }
-
+        await importFeedback.stage('正在完成匯入…');
+        const cardCount = rounds.reduce((sum, round) => sum + round.cards.length, 0);
+        log(`✅ 匯入成功：${rounds.length} 局、${cardCount} 張牌`, 'success');
+        importFeedback.finish(recoveryWarning ? 'warning' : 'success',
+            recoveryWarning ? '牌局已載入，統計未完成' : '匯入完成',
+            `${file.name} · ${rounds.length} 局、${cardCount} 張牌。${recoveryWarning}`);
+        return true;
     } catch (error) {
         console.error('匯入失敗:', error);
         log(`匯入失敗: ${error.message}`, 'error');
+        importFeedback.finish('error', '匯入失敗', `${error.message} 請修正後重新匯入。`);
+        return false;
     }
 }
 
@@ -5055,13 +5069,15 @@ function showDriveFilePicker(files) {
  * 從 Google Drive 載入檔案列表
  */
 async function loadFromGoogleDrive() {
+    if (!importFeedback.begin('Google 雲端硬碟')) return;
     try {
+        await importFeedback.stage('正在讀取雲端檔案清單…');
         log('正在從 Google Drive 載入檔案列表...', 'info');
 
         // 同時載入資料夾和檔案
         const [folderRes, fileRes] = await Promise.all([
-            fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=listFolders`).then(r => r.json()).catch(() => null),
-            fetch(GOOGLE_APPS_SCRIPT_URL).then(r => r.json())
+            fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=listFolders`, { signal: AbortSignal.timeout(60000) }).then(r => r.json()).catch(() => null),
+            fetch(GOOGLE_APPS_SCRIPT_URL, { signal: AbortSignal.timeout(60000) }).then(r => r.json())
         ]);
 
         if (!fileRes.success) {
@@ -5073,39 +5089,43 @@ async function loadFromGoogleDrive() {
 
         if (files.length === 0 && folders.length === 0) {
             log('Google Drive 中沒有找到任何檔案', 'warn');
+            importFeedback.finish('warning', '沒有可匯入的檔案', 'Google 雲端硬碟中沒有找到任何檔案。');
             return;
         }
 
         // 建立選擇對話框
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+        overlay.className = 'drive-import-overlay';
 
         const dialog = document.createElement('div');
-        dialog.style.cssText = 'background:#1a1a2e;border:1px solid #444;border-radius:10px;padding:20px;min-width:400px;max-width:500px;color:#eee;font-family:sans-serif;';
+        dialog.className = 'drive-import-dialog gframe';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-labelledby', 'driveImportTitle');
 
         dialog.innerHTML = `
-            <h3 style="margin:0 0 15px;color:#ffd700;">從 Google 雲端匯入</h3>
+            <h3 id="driveImportTitle">從 Google 雲端匯入</h3>
             ${folders.length > 0 ? `
-            <label style="display:block;margin-bottom:4px;font-size:13px;color:#aaa;">資料夾</label>
-            <select id="driveImportFolder" style="width:100%;padding:8px;margin-bottom:12px;background:#2a2a4a;color:#eee;border:1px solid #555;border-radius:4px;font-size:14px;">
+            <label for="driveImportFolder">資料夾</label>
+            <select id="driveImportFolder">
                 <option value="">根目錄</option>
                 ${folders.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
             </select>` : ''}
-            <label style="display:block;margin-bottom:4px;font-size:13px;color:#aaa;">檔案</label>
-            <select id="driveImportFile" style="width:100%;padding:8px;margin-bottom:16px;background:#2a2a4a;color:#eee;border:1px solid #555;border-radius:4px;font-size:14px;">
+            <label for="driveImportFile">檔案</label>
+            <select id="driveImportFile">
                 ${files.map(f => {
                     const date = new Date(f.lastModified).toLocaleString('zh-TW');
                     return `<option value="${f.id}">${f.name} (${date})</option>`;
                 }).join('')}
             </select>
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
-                <button id="driveImportCancel" style="padding:8px 20px;background:#444;color:#eee;border:none;border-radius:4px;cursor:pointer;font-size:14px;">取消</button>
-                <button id="driveImportOk" style="padding:8px 20px;background:#2d6a4f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;">匯入</button>
+            <div class="drive-import-actions">
+                <button id="driveImportCancel" class="tool-btn" type="button">取消</button>
+                <button id="driveImportOk" class="tool-btn active" type="button">匯入</button>
             </div>
         `;
 
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
+        importFeedback.hide();
 
         // 資料夾切換時重新載入檔案
         const folderSelect = dialog.querySelector('#driveImportFolder');
@@ -5148,33 +5168,44 @@ async function loadFromGoogleDrive() {
                 const fileId = fileSelect.value;
                 if (!fileId) { alert('請選擇檔案'); return; }
                 const fileName = fileSelect.options[fileSelect.selectedIndex].textContent;
+                if (!importFeedback.begin(fileName)) return;
                 overlay.remove();
 
-                log(`正在下載: ${fileName}...`, 'info');
-                const downloadUrl = `${GOOGLE_APPS_SCRIPT_URL}?fileId=${fileId}`;
-                const response = await fetch(downloadUrl);
-                const base64Data = await response.text();
+                try {
+                    await importFeedback.stage('正在下載雲端檔案…');
+                    log(`正在下載: ${fileName}...`, 'info');
+                    const downloadUrl = `${GOOGLE_APPS_SCRIPT_URL}?fileId=${fileId}`;
+                    const response = await fetch(downloadUrl, { signal: AbortSignal.timeout(60000) });
+                    if (!response.ok) throw new Error(`下載失敗（HTTP ${response.status}）`);
+                    const base64Data = await response.text();
 
-                // base64 轉 ArrayBuffer
-                const binaryString = atob(base64Data);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
+                    // base64 轉 ArrayBuffer
+                    const binaryString = atob(base64Data);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    const file = new File([bytes.buffer], fileName, {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    });
+
+                    log(`✓ 下載完成，正在匯入資料...`, 'success');
+                    await importRoundsFromExcel(file, true);
+                } catch (error) {
+                    const message = error.name === 'TimeoutError' ? '雲端下載逾時，請稍後重新匯入。' : `下載失敗：${error.message}`;
+                    log(message, 'error');
+                    importFeedback.finish('error', '匯入失敗', message);
+                } finally {
+                    resolve();
                 }
-
-                const file = new File([bytes.buffer], fileName, {
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                });
-
-                log(`✓ 下載完成，正在匯入資料...`, 'success');
-                await importRoundsFromExcel(file);
-                resolve();
             };
         });
 
     } catch (error) {
         console.error('從 Google Drive 載入錯誤:', error);
         log(`從 Google Drive 載入失敗: ${error.message}`, 'error');
+        importFeedback.finish('error', '雲端清單載入失敗', error.name === 'TimeoutError' ? '連線逾時，請稍後重試。' : error.message);
     }
 }
 
