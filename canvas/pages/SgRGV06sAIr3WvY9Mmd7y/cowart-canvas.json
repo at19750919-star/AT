@@ -1,0 +1,230 @@
+{
+  "schema": {
+    "schemaVersion": 2,
+    "sequences": {
+      "com.tldraw.store": 5,
+      "com.tldraw.asset": 1,
+      "com.tldraw.camera": 1,
+      "com.tldraw.document": 2,
+      "com.tldraw.instance": 26,
+      "com.tldraw.instance_page_state": 5,
+      "com.tldraw.page": 1,
+      "com.tldraw.instance_presence": 6,
+      "com.tldraw.pointer": 1,
+      "com.tldraw.shape": 4,
+      "com.tldraw.user": 1,
+      "com.tldraw.asset.image": 6,
+      "com.tldraw.asset.video": 5,
+      "com.tldraw.asset.bookmark": 2,
+      "com.tldraw.shape.group": 0,
+      "com.tldraw.shape.text": 4,
+      "com.tldraw.shape.bookmark": 2,
+      "com.tldraw.shape.draw": 4,
+      "com.tldraw.shape.geo": 11,
+      "com.tldraw.shape.note": 12,
+      "com.tldraw.shape.line": 5,
+      "com.tldraw.shape.arrow": 8,
+      "com.tldraw.shape.highlight": 3,
+      "com.tldraw.shape.embed": 4,
+      "com.tldraw.shape.image": 5,
+      "com.tldraw.shape.video": 4,
+      "com.tldraw.shape.frame": 1,
+      "com.tldraw.binding.arrow": 1
+    }
+  },
+  "store": {
+    "shape:rEdtQJkijyg59O5hoLLiv": {
+      "x": 745.6110507078408,
+      "y": 433.61042400799846,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {},
+      "id": "shape:rEdtQJkijyg59O5hoLLiv",
+      "type": "draw",
+      "props": {
+        "segments": [
+          {
+            "type": "free",
+            "path": "AAAAAAAAAAAAAAA/AABcvwAAAABmvwAAAABhwwAAAABcvwAAAABmvwAAAABcvwAAAABhwwAAAABhwwAAAABcwwAAAABmvwAAAABhwwAAAABhwwAAAABcvwAAAABcvwAAAABhwwAAAABmvwAAAABcvwAAAABmvwAAAABcvwAAAABcvwAAAABmvwAAXL9cvwAAZr8AAAAAAABmvwAAXL9cvwAAAABmvwAAZr8AAAAAXL9cwwAAZr9mvwAAAABcvwAAXMNhwwAAZr9cvwAAYcNmvwAAAABhwwAAYcNcvwAAXL9mvwAAXL9cvwAAZr9cvwAAXL9mvwAAYcNcvwAAYcNmvwAAAABcvwAAXL8AAAAAZr8AAAAAXL9mvwAAYcMAAAAAXL9cvwAAZr8AAAAAYcNcvwAAX8dhwwAAYcdmvwAAiclhwwAAX8dcwwAAnMhmvwAAisVcvwAAYcMAAAAAXL8AAAAAXL8AAAAAZr8AAAAAXL8AAAAAZr8AAAAAXMMAAAAAZr8AAAAAYcMAAAAAXL9cPwAAZr9mPwAAXMMAAAAAZr9cPwAAYcNcPwAAXL8AAAAAAABmPwAAYcNcPwAAYcNmPwAAXL9cPwAAZr9mPwAAiMVcPwAAYcNhQwAAXL9cPwAAYcMAAAAAXL9hQwAAZr8AAAAAXL9mPwAAZr9cPwAAAABcPwAAXL8AAAAAAABmPwAAZr9cPwAAXL9mPwAAAABcPwAAXL9mPwAAAABcPwAAZr8AAAAAAABcPwAAXL9mPwAAAABcPwAAZr9mPwAAXL9cQwAAAABmPwAAYcNhQwAAXL9cPwAAAABmPwAAYcNcQwAAAABmPwAAZr9hQwAAXL9cPwAAAABmPwAAXL9cQwAAZr9mPwAAAABhQwAAXL9hQwAAYcNcQwAAAABhQwAAZr9hQwAAXL9hQwAAAABcPwAAXL9mPwAAAABcPwAAZr9mPwAAAABcPwAAAABcPwAAAABhQwAAAABmPwAAAABhQwAAAABcPwAAAABcPwAAAABhQwAAAABmPwAAAABcPwAAAABhQwAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAAABcPwAAAABhQwAAAABmPwAAAABcPwAAAABhQwAAAABcPwAAAABmPwAAAABhQwAAZj9cPwAAAABmPwAAXD9cPwAAAABcPwAAXD9mPwAAAABcPwAAZj9mPwAAAABcPwAAXD9hQwAAZj9cPwAAAABmPwAAXD9hQwAAZj9cPwAAAABcPwAAXD9mPwAAXD9cPwAAZj9hQwAAXD9mPwAAAABcPwAAZj9cPwAAXD9hQwAAXD9mPwAAAABcPwAAYUNmPwAAZj9cPwAAXD+IRQAAZj9mPwAAXENcPwAAZj9hQwAAXD9cPwAAAABhQwAAZj8AAAAAXD9mPwAAZj9cPwAAAABcPwAAXD8AAAAAXD9mPwAAZj9cPwAAXD9mPwAAZj9cPwAAAABmPwAAXD8AAAAAAABcPwAAXD8AAAAAZj9cPwAAXD8AAAAAZj9mPwAAAABcPwAAXD8AAAAAZj9mPwAAXENcPwAAAABcPwAAZj8AAAAAAABmPwAAYUMAAAAAXD8AAAAAZj9cPwAAXENmPwAAYUNcPwAAZj9mPwAAXD8AAAAAZj9cPwAAXENcPwAAikUAAAAAXENmPwAAikVcPwAAiEVmPwAAYUMAAAAAYUMAAAAAXD8AAAAAAABcPwAAZj8AAAAAXD8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAYUMAAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAXD8AAAAAZj9mPwAAXD8AAAAAZj8AAAAA"
+          }
+        ],
+        "color": "blue",
+        "fill": "none",
+        "dash": "draw",
+        "size": "xl",
+        "isComplete": true,
+        "isClosed": false,
+        "isPen": false,
+        "scale": 1,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "parentId": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "index": "a3e3Bh9V",
+      "typeName": "shape"
+    },
+    "shape:tzHJgKscM9FUkNmnob-y7": {
+      "x": -159.86712646484375,
+      "y": -325.2517395019531,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {},
+      "id": "shape:tzHJgKscM9FUkNmnob-y7",
+      "type": "image",
+      "props": {
+        "w": 1254,
+        "h": 1254,
+        "assetId": "asset:889250677",
+        "playing": true,
+        "url": "",
+        "crop": null,
+        "flipX": false,
+        "flipY": false,
+        "altText": ""
+      },
+      "parentId": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "index": "a1iSnCUl",
+      "typeName": "shape"
+    },
+    "shape:Y5gq-uwsYRzVEzaEiUUE5": {
+      "x": -159.86712646484375,
+      "y": -325.25173950195307,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {},
+      "id": "shape:Y5gq-uwsYRzVEzaEiUUE5",
+      "type": "image",
+      "props": {
+        "w": 1254,
+        "h": 1254,
+        "assetId": "asset:1369857524",
+        "playing": true,
+        "url": "",
+        "crop": null,
+        "flipX": false,
+        "flipY": false,
+        "altText": ""
+      },
+      "parentId": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "index": "a550ktoV",
+      "typeName": "shape"
+    },
+    "user:3irNNX1Zt8DtLNZX4SsqN": {
+      "name": "",
+      "color": "#BD54C6",
+      "imageUrl": "",
+      "meta": {},
+      "id": "user:3irNNX1Zt8DtLNZX4SsqN",
+      "typeName": "user"
+    },
+    "shape:NbrBrZcAl0N0NiFZSG0FM": {
+      "x": -60.31602195148241,
+      "y": -239.5321381202765,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {},
+      "id": "shape:NbrBrZcAl0N0NiFZSG0FM",
+      "type": "draw",
+      "props": {
+        "segments": [
+          {
+            "type": "free",
+            "path": "AAAAAAAAAAAAAAA/AAAAAAAAiEUAAAAAYUthRwAAiE2cSAAAAAAAAAAAYVBgSwAAw1ETTQAAJVN0TgAAsFKITQAAAAAAAAAAw1ESTQAA11CdTAAAAAAAAAAAYU8mTAAAnEx0SgAAdEqdSAAAiUl0SgAAAAAAAAAAdEqISQAAnEiJSQAAiEl0SgAAAAAAAAAAiUkmTAAAYEudTAAAAAAAAAAAYEucTAAAYUsmTAAAdEp0SgAAiEmISQAAAAAAAAAAnEicSAAAYUdhRwAAYUNhQwAAiEWIRQAAZj9cPwAAXD9mPwAAYUNhQwAAYUNhQwAAYUOIRQAAnEhhRwAAdEpzSgAAiEmJSQAAdEqJSQAAYUt0SgAAiEmcSAAAnEhfRwAAikVhQwAAXENhQwAAYUMAAAAAAABcPwAAZj8AAAAAAABmPwAAXD9cPwAAZj8AAAAA"
+          }
+        ],
+        "color": "blue",
+        "fill": "none",
+        "dash": "draw",
+        "size": "xl",
+        "isComplete": true,
+        "isClosed": false,
+        "isPen": false,
+        "scale": 1,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "parentId": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "index": "a4MzmLpl",
+      "typeName": "shape"
+    },
+    "asset:1369857524": {
+      "id": "asset:1369857524",
+      "type": "image",
+      "typeName": "asset",
+      "props": {
+        "name": "asset-1369857524.png",
+        "src": "/page-assets/SgRGV06sAIr3WvY9Mmd7y/asset-1369857524.png",
+        "w": 1254,
+        "h": 1254,
+        "fileSize": 974234,
+        "mimeType": "image/png",
+        "isAnimated": false
+      },
+      "meta": {}
+    },
+    "page:SgRGV06sAIr3WvY9Mmd7y": {
+      "meta": {},
+      "id": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "name": "頁面 1",
+      "index": "a2UknXzt",
+      "typeName": "page"
+    },
+    "shape:yvAJNo88oV3YVS6ZEIXYF": {
+      "x": 194.1872895669179,
+      "y": 404.10280418471285,
+      "rotation": 0,
+      "isLocked": false,
+      "opacity": 1,
+      "meta": {},
+      "id": "shape:yvAJNo88oV3YVS6ZEIXYF",
+      "type": "draw",
+      "props": {
+        "segments": [
+          {
+            "type": "free",
+            "path": "AAAAAAAAAAAAAAA/AABcvwAAAABmvwAAAABcvwAAAABmvwAAAABcvwAAAABmvwAAXD8AAAAAAABcvwAAAABcvwAAAABmvwAAZj9cvwAAAABmvwAAAABcvwAAAABcvwAAXD8AAAAAAABmvwAAAABcvwAAZj9mvwAAXD8AAAAAAABcvwAAZj9hwwAAAABcvwAAXD8AAAAAXD9mvwAAAABcvwAAZj9mvwAAXD9cvwAAZj9mvwAAXD9cvwAAXD9cvwAAZj9mvwAAXD9cvwAAZj9mvwAAXD8AAAAAAABcvwAAZj9mvwAAXD8AAAAAAABcvwAAXD8AAAAAAABcvwAAZj8AAAAAXD9mvwAAZj9cvwAAXD9mvwAAZj8AAAAAXD9cvwAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAYUMAAAAAXD8AAAAAYUMAAAAAZj8AAAAAXEMAAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAXD8AAAAAYUMAAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAXD8AAAAAZj8AAAAAXD8AAAAAZj8AAAAAXD9cPwAAXD8AAAAAZj9mPwAAXD8AAAAAAABcPwAAZj9mPwAAXD8AAAAAZj9cPwAAXD9cPwAAXD9mPwAAZj8AAAAAAABcPwAAXD9mPwAAZj8AAAAAXD8AAAAAAABcPwAAZj9mPwAAXD8AAAAAAABcPwAAAABcPwAAXD8AAAAAZj9mPwAAXD9cPwAAAABmPwAAZj9cPwAAXD9mPwAAXD8AAAAAAABcPwAAZj8AAAAAAABcPwAAXD9mPwAAAABcPwAAZj8AAAAAXD9mPwAAZj9cPwAAAABmPwAAXD9cPwAAXD9cPwAAZj8AAAAAAABmPwAAAABcPwAAXD8AAAAAAABmPwAAAABcPwAAZj8AAAAAAABcPwAAAABmPwAAXD8AAAAAAABcPwAAZj9mPwAAXD8AAAAAAABcPwAAAABmPwAAXD8AAAAAAABcPwAAZj9cPwAAAABmPwAAAABcPwAAXD9mPwAAZj9cPwAAAABhQwAAXD8AAAAAAABcPwAAAABmPwAAAABcPwAAZj9mPwAAAABcPwAAAABcPwAAAABmPwAAXD9cPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAXD8AAAAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAAABcPwAAAABmPwAAAABcPwAAAABmPwAAAABcPwAAXL8AAAAAAABcPwAAAABmPwAAAABcPwAAXL9mPwAAAABcPwAAAABmPwAAAABcPwAAAABcPwAAZr8AAAAAAABmPwAAAABcPwAAAABmPwAAXL9cPwAAZr8AAAAAAABmPwAAAABcPwAAXL9cPwAAAABmPwAAZr9cPwAAAABhQwAAXL8AAAAAAABmPwAAAABcPwAAXL9cPwAAAABmPwAAAABcPwAAZr9mPwAAXL9cPwAAAABcPwAAAABmPwAAZr9cPwAAAABmPwAAXL9cPwAAAABmPwAAAABcPwAAZr8AAAAAAABcPwAAXL8AAAAAAABmPwAAXL9cPwAAAABmPwAAAABcPwAAZr8AAAAAAABmPwAAXL9cPwAAZr9cPwAAAABmPwAAXL8AAAAAAABcPwAAZr9mPwAAAABcPwAAXL8AAAAAXL9cPwAAAABmPwAAZr9cPwAAAABmPwAAYcNcPwAAAABmPwAAXL9cPwAAAABcPwAAYcNmPwAAXL9cPwAAAABmPwAAZr8AAAAAXL9cPwAAAABmPwAAZr8AAAAAAABcPwAAXL9cPwAAXL9mPwAAZr8AAAAAAABcPwAAXL8AAAAAAABmPwAAZr9cPwAAXL8AAAAAZr8AAAAAAABmPwAAXL8AAAAAAABcPwAAYcNcPwAAXL9mPwAAYcMAAAAAXL8AAAAAZr9cPwAAYcNmPwAAXL8AAAAAYcMAAAAAiMVcPwAAickAAAAA"
+          }
+        ],
+        "color": "blue",
+        "fill": "none",
+        "dash": "draw",
+        "size": "xl",
+        "isComplete": true,
+        "isClosed": false,
+        "isPen": false,
+        "scale": 1,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "parentId": "page:SgRGV06sAIr3WvY9Mmd7y",
+      "index": "a2Az5zi8",
+      "typeName": "shape"
+    },
+    "asset:889250677": {
+      "id": "asset:889250677",
+      "type": "image",
+      "typeName": "asset",
+      "props": {
+        "name": "asset-889250677.png",
+        "src": "/page-assets/SgRGV06sAIr3WvY9Mmd7y/asset-889250677.png",
+        "w": 1254,
+        "h": 1254,
+        "fileSize": 1152372,
+        "mimeType": "image/png",
+        "isAnimated": false
+      },
+      "meta": {}
+    },
+    "document:document": {
+      "gridSize": 10,
+      "name": "",
+      "meta": {},
+      "id": "document:document",
+      "typeName": "document"
+    }
+  }
+}
