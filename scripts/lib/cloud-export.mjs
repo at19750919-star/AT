@@ -2,14 +2,27 @@ import fs from 'node:fs/promises';
 
 export const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypt3_PnEL5TgdDPaBwg1M5bWAjQMR9dD5Jslicn3eZCtuNSTtqO35RafhQpuX-l9_m/exec';
 
-export async function listDriveFiles(fetchImpl = fetch) {
-  const response = await fetchImpl(GOOGLE_APPS_SCRIPT_URL);
-  if (!response.ok) throw new Error(`讀取Google Drive清單失敗：HTTP ${response.status || 'unknown'}`);
-  const result = await response.json();
-  if (!result.success || !Array.isArray(result.files)) {
-    throw new Error(result.message || result.error || 'Google Drive回傳的檔案清單無效');
+// Apps Script 偶發回 404 HTML（同一網址重打即正常），讀取清單是唯讀操作，重試安全
+export async function listDriveFiles(
+  fetchImpl = fetch,
+  wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+) {
+  let lastError;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const response = await fetchImpl(GOOGLE_APPS_SCRIPT_URL);
+      if (!response.ok) throw new Error(`讀取Google Drive清單失敗：HTTP ${response.status || 'unknown'}`);
+      const result = await response.json();
+      if (!result.success || !Array.isArray(result.files)) {
+        throw new Error(result.message || result.error || 'Google Drive回傳的檔案清單無效');
+      }
+      return result.files;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 4) await wait(2000 * attempt);
+    }
   }
-  return result.files;
+  throw lastError;
 }
 
 export async function uploadWorkbookToDrive({
