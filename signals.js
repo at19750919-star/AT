@@ -4914,37 +4914,49 @@ function recalculateRoundsAfterDistribution(rounds) {
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypt3_PnEL5TgdDPaBwg1M5bWAjQMR9dD5Jslicn3eZCtuNSTtqO35RafhQpuX-l9_m/exec';
 
 /**
+ * 讀取 Google Drive 檔案清單。Apps Script 偶發回 404 HTML，唯讀操作可安全重試。
+ */
+async function fetchDriveFileList() {
+    const MAX_ATTEMPTS = 4;
+    let lastError = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && data.success && Array.isArray(data.files)) return data.files;
+            throw new Error((data && (data.message || data.error)) || '檔案清單格式錯誤');
+        } catch (e) {
+            lastError = e;
+            if (attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+    }
+    throw new Error(`讀取Google Drive清單失敗：${lastError && lastError.message ? lastError.message : lastError}`);
+}
+
+/**
  * 產生下一個導出檔名：從 F501.xlsx 起，並接續現有最大編號
  * 編號以「雲端 Drive 現有最大 F 編號 +1」為準（跨瀏覽器/port/裝置一致），
- * localStorage 僅在雲端讀取失敗時作為 fallback，避免完全沒編號。
+ * 雲端清單讀不到時直接中止導出，不再退回本機計數器。
  */
 async function getNextExportFilename() {
     const key = 'at-export-counter';
     const START = 500; // 從 F501 開始（START + 1）
 
-    // 取得雲端現有最大 F 編號
+    // 取得雲端現有最大 F 編號；讀不到就停止導出，避免退回本機計數器造成跳號或重號
+    const files = await fetchDriveFileList();
     let cloudMax = -1;
-    try {
-        const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.files)) {
-            for (const f of data.files) {
-                const m = (f.name || '').match(/^F(\d+)\.xlsx$/i);
-                if (m) {
-                    const n = parseInt(m[1], 10);
-                    if (Number.isFinite(n) && n > cloudMax) cloudMax = n;
-                }
-            }
+    for (const f of files) {
+        const m = (f.name || '').match(/^F(\d+)\.xlsx$/i);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            if (Number.isFinite(n) && n > cloudMax) cloudMax = n;
         }
-    } catch (e) {
-        console.warn('讀取雲端檔案清單失敗，改用本機計數器', e);
     }
 
-    // 本機計數器（fallback / 與雲端取較大者，避免雲端暫時讀不到就倒退）
-    const local = parseInt(localStorage.getItem(key) || '0', 10);
+    // 以雲端為準；本機計數器只做紀錄
     let base = START;
     if (Number.isFinite(cloudMax) && cloudMax >= base) base = cloudMax;
-    if (Number.isFinite(local) && local > base) base = local;
 
     const next = base + 1;
     localStorage.setItem(key, String(next));
@@ -4964,9 +4976,18 @@ async function uploadToGoogleDrive(blob, filename) {
         base64Data: base64Data.split(',')[1]
     };
 
+    const countSameName = async () =>
+        (await fetchDriveFileList()).filter(f => f.name === filename).length;
+    const countBefore = await countSameName();
+
     let lastError = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
+            // 上一次可能其實已寫進雲端、只是回應出錯；先確認，避免重複上傳同名檔
+            if (attempt > 1 && (await countSameName()) > countBefore) {
+                log(`✓ 已確認 ${filename} 已在 Google Drive`, 'success');
+                return { success: true, fileName: filename };
+            }
             log(`正在上傳到 Google Drive... (第 ${attempt} 次嘗試)`, 'info');
 
             const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
