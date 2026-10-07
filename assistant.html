@@ -2521,6 +2521,11 @@
         grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
         gap: 10px;
       }
+      /* 檔案來源切換：沿用同面板 .main-tool；選中狀態＝ .main-tool:hover 的金字金線 */
+      .file-source-tabs { display: flex; gap: 8px; margin-left: auto; }
+      .file-source-tab { min-height: 34px; padding: 6px 14px; }
+      .file-source-tab.active { color: var(--shoe-gold-bright); border-image: var(--shoe-gold-line) 1; }
+      .list-state .main-tool { margin-top: 12px; }
       .file-item {
         position: relative;
         min-height: 74px;
@@ -2632,6 +2637,11 @@
         <div>
           <span class="file-manager-kicker">CLOUD SHOES</span>
           <h3>雲端牌靴</h3>
+        </div>
+        <div class="file-source-tabs" role="tablist" aria-label="檔案來源">
+          <button class="main-tool file-source-tab" type="button" data-source="new">新牌</button>
+          <button class="main-tool file-source-tab" type="button" data-source="tr">穿越牌</button>
+          <button class="main-tool file-source-tab" type="button" data-source="local">本機</button>
         </div>
         <button id="save-current-btn" class="main-tool" type="button">
           <span class="tool-coin">♦</span><span>儲存目前檔案</span>
@@ -3024,6 +3034,22 @@
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script>
       const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypt3_PnEL5TgdDPaBwg1M5bWAjQMR9dD5Jslicn3eZCtuNSTtqO35RafhQpuX-l9_m/exec';
+
+      // Google Apps Script 常偶發回傳 404 錯誤網頁（同一網址重打就正常），讀取類請求自動重試幾次。
+      // 回傳 Response，呼叫端照舊用 parseCloudJson()／.text() 處理
+      async function cloudGet(url, onRetry) {
+        let text = '';
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          const res = await fetch(url);
+          text = await res.text();
+          if (!text.trim().startsWith('<')) break;
+          if (attempt < 5) {
+            if (onRetry) onRetry(attempt);
+            await new Promise((r) => setTimeout(r, 1500 * attempt));
+          }
+        }
+        return new Response(text);
+      }
 
       // 有時 Google 那端會回傳一個 HTML 頁面（不是預期的 JSON），
       // 直接呼叫 response.json() 只會噴出看不懂的 "Unexpected token '<'"，這裡先攔截並顯示真正原因
@@ -3502,7 +3528,7 @@
             const downloadUrl =
               APPS_SCRIPT_URL + "?fileId=" +
               file.id;
-            const fileResponse = await fetch(downloadUrl);
+            const fileResponse = await cloudGet(downloadUrl);
             const base64Data = await fileResponse.text();
             throwIfCloudErrorPayload(base64Data);
 
@@ -5472,10 +5498,123 @@
           messageDiv.textContent = "";
         }
 
+        // ===== 檔案來源：新牌（預設雲端資料夾）／穿越牌（雲端 TR 資料夾）／本機資料夾 =====
+        const TRAVERSE_FOLDER_ID = '17RvOVNDc0a_JEem1SnRPsTEvm8otkJdx';
+        let fileSource = 'new';
+        try { fileSource = localStorage.getItem('assistant-file-source') || 'new'; } catch (e) { /* 讀不到就用預設 */ }
+        function syncSourceTabs() {
+          document.querySelectorAll('.file-source-tab').forEach((b) => b.classList.toggle('active', b.dataset.source === fileSource));
+          const h3 = document.querySelector('#file-manager h3');
+          if (h3) h3.textContent = fileSource === 'local' ? '本機牌靴' : (fileSource === 'tr' ? '穿越牌（雲端）' : '雲端牌靴');
+        }
+        document.querySelectorAll('.file-source-tab').forEach((b) => b.addEventListener('click', () => {
+          fileSource = b.dataset.source;
+          try { localStorage.setItem('assistant-file-source', fileSource); } catch (e) { /* 無痕視窗等 */ }
+          loadSavedFiles();
+        }));
+
+        // 本機資料夾：用瀏覽器的資料夾授權（第一次要選資料夾，之後記住；重開瀏覽器可能要再按一次允許）
+        function idbHandleStore(mode, value) {
+          return new Promise((resolve, reject) => {
+            const open = indexedDB.open('assistant-local-dir', 1);
+            open.onupgradeneeded = () => open.result.createObjectStore('h');
+            open.onerror = () => reject(open.error);
+            open.onsuccess = () => {
+              const tx = open.result.transaction('h', mode);
+              const req = mode === 'readonly' ? tx.objectStore('h').get('dir') : tx.objectStore('h').put(value, 'dir');
+              req.onsuccess = () => resolve(req.result);
+              req.onerror = () => reject(req.error);
+            };
+          });
+        }
+        async function pickLocalDir() {
+          const dir = await window.showDirectoryPicker({ id: 'shoe-files', startIn: 'downloads', mode: 'read' });
+          try { await idbHandleStore('readwrite', dir); } catch (e) { /* 記不住就下次再選 */ }
+          return dir;
+        }
+        function localState(text, btnText, onClick) {
+          savedFilesList.innerHTML = '';
+          const box = document.createElement('div');
+          box.className = 'list-state';
+          box.textContent = text;
+          if (btnText) {
+            box.appendChild(document.createElement('br'));
+            const btn = document.createElement('button');
+            btn.className = 'main-tool';
+            btn.type = 'button';
+            btn.textContent = btnText;
+            btn.addEventListener('click', onClick);
+            box.appendChild(btn);
+          }
+          savedFilesList.appendChild(box);
+        }
+        const chooseDir = async () => { try { loadLocalFiles(await pickLocalDir()); } catch (e) { /* 使用者取消 */ } };
+        async function loadLocalFiles(dirOverride) {
+          if (!window.showDirectoryPicker) {
+            localState('這個瀏覽器不能讀資料夾，請改用單一檔案選取', '選擇 Excel 檔案', () => fileInput.click());
+            return;
+          }
+          let dir = dirOverride || null;
+          if (!dir) { try { dir = await idbHandleStore('readonly'); } catch (e) { dir = null; } }
+          if (!dir) {
+            localState('尚未選擇資料夾（例如「下載」）', '選擇資料夾', chooseDir);
+            return;
+          }
+          if ((await dir.queryPermission({ mode: 'read' })) !== 'granted') {
+            localState('需要允許讀取「' + dir.name + '」資料夾', '允許讀取', async () => {
+              if ((await dir.requestPermission({ mode: 'read' })) === 'granted') loadLocalFiles(dir);
+            });
+            return;
+          }
+          localState('讀取資料夾中...');
+          const files = [];
+          for await (const entry of dir.values()) {
+            if (entry.kind !== 'file' || !/\.xlsx$/i.test(entry.name) || entry.name.startsWith('~$')) continue;
+            const f = await entry.getFile();
+            files.push({ name: entry.name, lastModified: f.lastModified, handle: entry });
+          }
+          files.sort((a, b) => b.lastModified - a.lastModified);
+          localState('資料夾：' + dir.name + '（' + files.length + ' 個 Excel）', '換資料夾', chooseDir);
+          files.forEach((file) => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.dataset.fileName = file.name;
+            const name = document.createElement('div');
+            name.className = 'file-name';
+            name.textContent = file.name;
+            const small = document.createElement('small');
+            small.textContent = new Date(file.lastModified).toLocaleString('zh-TW');
+            name.appendChild(small);
+            name.addEventListener('click', () => loadLocalFile(file));
+            item.appendChild(name);
+            savedFilesList.appendChild(item);
+          });
+        }
+        async function loadLocalFile(file) {
+          try {
+            loadingSpinner.style.display = "block";
+            loadingSpinner.textContent = "正在讀取本機檔案...";
+            const f = await file.handle.getFile();
+            currentFileName = f.name.replace(/\.xlsx$/i, '');
+            currentFileData = await f.arrayBuffer();
+            const deck = await parseExcelToDeck(f);
+            if (!deck || !deck.length) throw new Error('無法從 Excel 中解析出任何有效的牌組資料。');
+            startAssistant(deck);
+            loadingSpinner.style.display = "none";
+            fileManager.style.display = "none";
+            messageDiv.textContent = '已載入 ' + currentFileName + '，按下播放按鈕開始';
+          } catch (error) {
+            loadingSpinner.style.display = "none";
+            alert('讀取本機檔案失敗: ' + error.message);
+          }
+        }
+
         async function loadSavedFiles() {
+          syncSourceTabs();
+          if (fileSource === 'local') return loadLocalFiles();
           savedFilesList.innerHTML = '<div class="list-state">載入中...</div>';
           try {
-            const res = await fetch(APPS_SCRIPT_URL);
+            const res = await cloudGet(fileSource === 'tr' ? APPS_SCRIPT_URL + '?folderId=' + TRAVERSE_FOLDER_ID : APPS_SCRIPT_URL);
             const data = await parseCloudJson(res);
             const files = (data.success && data.files) ? data.files : [];
             savedFilesList.innerHTML = "";
@@ -5504,7 +5643,7 @@
           const notify = onStatus || (() => {});
           const downloadUrl = `${APPS_SCRIPT_URL}?fileId=${fileId}`;
           notify('正在連接雲端...');
-          const response = await fetch(downloadUrl);
+          const response = await cloudGet(downloadUrl, (n) => notify('雲端暫時沒回應，重試第 ' + n + ' 次...'));
           notify('正在下載檔案內容...');
           const base64Data = await response.text();
           throwIfCloudErrorPayload(base64Data);
@@ -5633,7 +5772,7 @@
         async function updateUploadFileList() {
           uploadSavedFiles.innerHTML = '<div class="list-state">載入中...</div>';
           try {
-            const res = await fetch(APPS_SCRIPT_URL);
+            const res = await cloudGet(APPS_SCRIPT_URL);
             const data = await parseCloudJson(res);
             const files = (data.success && data.files) ? data.files : [];
             _uploadFileCache = files;
