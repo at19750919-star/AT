@@ -3740,6 +3740,10 @@
         uploadLabel.addEventListener("dragleave", handleDragLeave);
         uploadLabel.addEventListener("drop", handleDrop);
 
+        // 檔案來源（新牌／穿越牌／本機），開頁載入清單前就要有值
+        const TRAVERSE_FOLDER_ID = '17RvOVNDc0a_JEem1SnRPsTEvm8otkJdx';
+        let fileSource = 'new';
+        try { fileSource = localStorage.getItem('assistant-file-source') || 'new'; } catch (e) { /* 讀不到就用預設 */ }
         // 載入已儲存的檔案
         initSpeechVoice();
         loadSavedFiles();
@@ -5499,9 +5503,7 @@
         }
 
         // ===== 檔案來源：新牌（預設雲端資料夾）／穿越牌（雲端 TR 資料夾）／本機資料夾 =====
-        const TRAVERSE_FOLDER_ID = '17RvOVNDc0a_JEem1SnRPsTEvm8otkJdx';
-        let fileSource = 'new';
-        try { fileSource = localStorage.getItem('assistant-file-source') || 'new'; } catch (e) { /* 讀不到就用預設 */ }
+        // TRAVERSE_FOLDER_ID、fileSource 宣告在前面「載入已儲存的檔案」之前（開頁就會用到）
         function syncSourceTabs() {
           document.querySelectorAll('.file-source-tab').forEach((b) => b.classList.toggle('active', b.dataset.source === fileSource));
           const h3 = document.querySelector('#file-manager h3');
