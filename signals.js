@@ -700,6 +700,20 @@ function shouldSkipSensitiveRound(round) {
         }
     }
 
+    // 「避開閒7贏莊6」勾選時，不論對不對調，只要閒 7 點贏莊 6 點就排除
+    const skipP7El = document.getElementById('skipPlayer7Banker6');
+    if (skipP7El && skipP7El.checked && Array.isArray(round.cards) && round.cards.length >= 4) {
+        const isP7OverB6 = (cards) => {
+            const hi = computeRoundHands(cards);
+            return !!hi && hi.playerTotal === 7 && hi.bankerTotal === 6;
+        };
+        const tmp = round.cards.map(c => c.clone());
+        [tmp[0], tmp[1]] = [tmp[1], tmp[0]];
+        if (isP7OverB6(round.cards) || isP7OverB6(tmp)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
