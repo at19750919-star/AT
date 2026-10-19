@@ -684,14 +684,18 @@ function shouldSkipSensitiveRound(round) {
         }
     }
 
-    // 「避開莊6點贏」勾選時，連 B6 局（對調後莊6贏）也一併排除
+    // 「避開莊6點贏」勾選時，不論對不對調，只要 5/6 張局會莊6點贏就排除（4 張局豁免）
     const skipBanker6El = document.getElementById('skipBanker6');
     const skipBanker6 = skipBanker6El ? skipBanker6El.checked : false;
     if (skipBanker6 && Array.isArray(round.cards) && round.cards.length >= 4) {
+        const isBanker6Win = (cards) => {
+            const hi = computeRoundHands(cards);
+            return !!hi && hi.bankerTotal === 6 && hi.playerTotal <= 5
+                && hi.playerCards.length + hi.bankerCards.length >= 5;
+        };
         const tmp = round.cards.map(c => c.clone());
         [tmp[0], tmp[1]] = [tmp[1], tmp[0]];
-        const swappedInfo = computeRoundHands(tmp);
-        if (swappedInfo && swappedInfo.bankerTotal === 6 && swappedInfo.playerTotal <= 5) {
+        if (isBanker6Win(round.cards) || isBanker6Win(tmp)) {
             return true;
         }
     }
