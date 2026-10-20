@@ -1824,7 +1824,7 @@ function getMaxTieLimitSetting() {
     const raw = String(el.value ?? '').trim();
     if (raw === '') return null;
     const n = parseInt(raw, 10);
-    if (!Number.isFinite(n) || n <= 0) return null;
+    if (!Number.isFinite(n) || n < 0) return null;
     return n;
 }
 
@@ -1909,7 +1909,7 @@ function preflightCheckMaxSideLimit(rounds, options = {}) {
     const sideLimit = getMaxSideLimitSetting();
     const tieLimit = getMaxTieLimitSetting();
     const fourCardRateLimit = getMaxFourCardRateSetting();
-    if (!sideLimit && !tieLimit && !fourCardRateLimit) {
+    if (!sideLimit && tieLimit === null && !fourCardRateLimit) {
         const fourCardStats = countFourCardRate(rounds);
         return {
             enabled: false,
@@ -1955,7 +1955,7 @@ function preflightCheckMaxSideLimit(rounds, options = {}) {
     const fourCardStats = countFourCardRate(sourceRounds);
     const sideDiff = Math.abs(counts.banker - (counts.player + counts.tie));
     const okSide = (!sideLimit) || (sideDiff <= sideLimit);
-    const okTie = (!tieLimit) || (counts.tie === tieLimit);
+    const okTie = (tieLimit === null) || (counts.tie <= tieLimit);
     const okFourCard = (!fourCardRateLimit) || (fourCardStats.rate <= fourCardRateLimit);
     const ok = okSide && okTie && okFourCard;
 
@@ -3227,14 +3227,14 @@ async function generateShoe() {
                 const four = preflightLimits.fourCardStats || { fourCardCount: 0, totalRounds: 0, rate: 0 };
                 const sideDiff = Math.abs(c.banker - (c.player + c.tie));
                 const sideText = preflightLimits.sideLimit ? `莊閒差距上限=${preflightLimits.sideLimit}` : '莊閒差距不檢查';
-                const tieText = preflightLimits.tieLimit ? `和局上限=${preflightLimits.tieLimit}` : '和局不檢查';
+                const tieText = preflightLimits.tieLimit !== null ? `和局上限=${preflightLimits.tieLimit}` : '和局不檢查';
                 const fourText = preflightLimits.fourCardRateLimit ? `4張局上限=${preflightLimits.fourCardRateLimit}%` : '4張局不檢查';
                 log(`🔍 檢測到：莊=${c.banker}、閒=${c.player}、和=${c.tie}、差距=${sideDiff}、4張=${four.fourCardCount}/${four.totalRounds} (${four.rate.toFixed(1)}%)（${sideText}，${tieText}，${fourText}）`, 'info');
                 if (!preflightLimits.ok) {
                     if (!preflightLimits.okSide && preflightLimits.sideLimit) {
                         log(`🔍 ⚠️ 莊閒差距超標（莊=${c.banker} vs 閒+和=${c.player + c.tie}，差距=${sideDiff} > ${preflightLimits.sideLimit}），重新生成...`, 'warn');
                     }
-                    if (!preflightLimits.okTie && preflightLimits.tieLimit) {
+                    if (!preflightLimits.okTie && preflightLimits.tieLimit !== null) {
                         log(`🔍 ⚠️ 和局超過上限（和=${c.tie} > ${preflightLimits.tieLimit}），重新生成...`, 'warn');
                     }
                     if (!preflightLimits.okFourCard && preflightLimits.fourCardRateLimit) {
@@ -4773,7 +4773,10 @@ function distributeRemainingCards(rounds, remainingCards) {
                     }
                 }
                 const b6Overflow = swapB6Target_ > 0 && currentB6Count_ >= swapB6Target_ && candidateIsB6;
-                const candidateOk = sensCandidate && !(sensCandidate.result === '和' && !prevIsT) && !b6Overflow;
+                const tieLimit_ = getMaxTieLimitSetting();
+                const tieOverflow = tieLimit_ !== null && sensCandidate && sensCandidate.result === '和'
+                    && rounds.filter((rd, j) => j !== lastRoundIndex && rd && rd.result === '和').length >= tieLimit_;
+                const candidateOk = sensCandidate && !(sensCandidate.result === '和' && !prevIsT) && !b6Overflow && !tieOverflow;
                 if (candidateOk) {
                     copiedRound.cards = sensCandidate.ordered.map((c, pos) => {
                         if (c && typeof c.clone === 'function') return c.clone(pos);
@@ -4868,7 +4871,10 @@ function distributeRemainingCards(rounds, remainingCards) {
                     if (candidate.result === '和') {
                         const prevRound = i > 0 ? updatedRounds[i - 1] : null;
                         const prevIsT = prevRound && (prevRound.isT || (typeof hasFullHouse === 'function' && hasFullHouse(prevRound)));
-                        if (!prevIsT) {
+                        const tieLimit_ = getMaxTieLimitSetting();
+                        const tieOverflow = tieLimit_ !== null
+                            && updatedRounds.filter((rd, j) => j !== i && rd && rd.result === '和').length >= tieLimit_;
+                        if (!prevIsT || tieOverflow) {
                             allRemainingCards.push(cardToAdd);
                             failedAttempts++;
                             log(`  ✗ ${formatCardLabel(cardToAdd)} 補入後結果為和局但上一局非三條，改試下一張`, 'warn');

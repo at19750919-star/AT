@@ -988,6 +988,11 @@ function pack_all_sensitive_and_segment(deck) {
     const max7PtLimit = max7PtInput && max7PtInput.value !== '' ? parseInt(max7PtInput.value) : null;
     let sevenPtReversalCount = 0;
 
+    // 和局上限：挑敏感局時和局達上限就不再挑和局（留白＝不限）
+    const tieLimit = typeof getMaxTieLimitSetting === 'function' ? getMaxTieLimitSetting() : null;
+    let tieCount = 0;
+    const tieFull = (round) => tieLimit !== null && round && round.result === '和' && tieCount >= tieLimit;
+
     const is7PtReversal = (round) => {
         if (!round || !Array.isArray(round.cards) || round.cards.length < 5) return false;
         if (!round.result || round.result === '和') return false;
@@ -1059,6 +1064,8 @@ function pack_all_sensitive_and_segment(deck) {
         if (max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit) continue;
         // 和局必須不含訊號牌（避免後續對調把 B6 破壞）
         if (r.result === '和' && !hasNoSignalCard(r)) continue;
+        // 和局達上限就跳過
+        if (tieFull(r)) continue;
         // B6 達目標就不再加入新的 B6 局
         if (swapB6Target > 0 && swapB6Count >= swapB6Target && isSwapBankerSix(r)) continue;
         // 三條+B6 重疊排除
@@ -1069,6 +1076,7 @@ function pack_all_sensitive_and_segment(deck) {
         if (r.cards.length === 4) fourCardCount++;
         if (is7PtReversal(r)) sevenPtReversalCount++;
         if (isSwapBankerSix(r)) swapB6Count++;
+        if (r.result === '和') tieCount++;
     }
     log(`🔍 自然敏感局加入完成：A段 ${a_rounds.length} 局(4張=${fourCardCount})，已用牌 ${used_pos.size} 張`, 'info');
     
@@ -1106,6 +1114,9 @@ function pack_all_sensitive_and_segment(deck) {
                     if (finalRound.result === '和' && !hasNoSignalCard(finalRound)) {
                         return null;
                     }
+                    if (tieFull(finalRound)) {
+                        return null;
+                    }
                     // B6 達目標就不再加入新的 B6 局
                     if (swapB6Target > 0 && swapB6Count >= swapB6Target && isSwapBankerSix(finalRound)) {
                         return null;
@@ -1116,6 +1127,7 @@ function pack_all_sensitive_and_segment(deck) {
                     if (last.cards.length === 4) fourCardCount++;
                     if (is7PtReversal(finalRound)) sevenPtReversalCount++;
                     if (isSwapBankerSix(finalRound)) swapB6Count++;
+                    if (finalRound.result === '和') tieCount++;
                     break;
                 }
             }
@@ -1130,7 +1142,8 @@ function pack_all_sensitive_and_segment(deck) {
                 && !(max7PtLimit !== null && is7PtReversal(r) && sevenPtReversalCount >= max7PtLimit)
                 && !(swapB6Target > 0 && swapB6Count >= swapB6Target && isSwapBankerSix(r))
                 && !(typeof hasFullHouse === 'function' && hasFullHouse(r) && isSwapBankerSix(r))
-                && !(r.result === '和' && !hasNoSignalCard(r));
+                && !(r.result === '和' && !hasNoSignalCard(r))
+                && !tieFull(r);
         // 優先挑選對調莊6的候選（如果目標未達成，且必須不含訊號牌、不能同時是三條）
         let picked = null;
         if (Array.isArray(cands)) {
@@ -1163,6 +1176,7 @@ function pack_all_sensitive_and_segment(deck) {
         if (picked.cards.length === 4) fourCardCount++;
         if (is7PtReversal(picked)) sevenPtReversalCount++;
         if (isSwapBankerSix(picked)) swapB6Count++;
+        if (picked.result === '和') tieCount++;
             added++;
     }
         if (added > 0) {
